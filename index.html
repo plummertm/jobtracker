@@ -1,163 +1,620 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Job Search Tracker + Discovery</title>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
 <style>
-:root{--bg:#f6f7fb;--card:#fff;--text:#17181b;--muted:#6b7280;--border:#e5e7eb;--accent:#111827;--soft:#f3f4f6;--blue:#2563eb;--blue-soft:#eff6ff;--purple:#7c3aed;--purple-soft:#f5f3ff;--orange:#ea580c;--orange-soft:#fff7ed;--green:#047857;--green-soft:#ecfdf5;--red:#991b1b;--red-soft:#fef2f2}
-*{box-sizing:border-box}
-body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at 8% 0%,#eef2ff 0,transparent 28%),radial-gradient(circle at 92% 8%,#fdf2f8 0,transparent 26%),var(--bg);color:var(--text)}
-.wrap{max-width:1450px;margin:0 auto;padding:32px 24px 60px}
-.topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:18px}
-h1{margin:0;font-size:32px;letter-spacing:-.04em}
-.subtitle{margin:7px 0 0;color:var(--muted)}
-button{border:0;border-radius:10px;padding:11px 16px;font-weight:650;cursor:pointer}
-.primary{background:var(--accent);color:#fff}
-.secondary{background:#fff;border:1px solid var(--border);color:var(--text)}
-.danger{color:var(--red);background:var(--red-soft)}
-.success{color:#065f46;background:#ecfdf5}
-.actions{display:flex;gap:10px;flex-wrap:wrap}
-input,select,textarea{width:100%;border:1px solid #d1d5db;background:#fff;border-radius:9px;padding:10px 11px;font:inherit;color:inherit}
-textarea{min-height:90px;resize:vertical}
-.auth-shell{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-.auth-card{width:min(430px,100%);background:#fff;border:1px solid var(--border);border-radius:18px;padding:28px;box-shadow:0 18px 50px rgba(0,0,0,.08)}
-.auth-card .stack{display:grid;gap:12px;margin-top:20px}
-.auth-msg{font-size:13px;margin-top:12px;min-height:18px}
-.userline{color:var(--muted);font-size:13px;margin-top:6px}
-.hidden{display:none!important}
-
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}
-.tab{background:#fff;border:1px solid var(--border);color:#4b5563}
-.tab.active{background:#111827;color:#fff;border-color:#111827}
-
-.activity-shell{background:rgba(255,255,255,.92);border:1px solid var(--border);border-radius:22px;padding:18px;margin-bottom:22px;box-shadow:0 14px 36px rgba(15,23,42,.06)}
-.activity-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
-.activity-head h2{margin:0;font-size:20px}
-.activity-head p{margin:5px 0 0;color:var(--muted);font-size:13px}
-.activity-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.activity-card{position:relative;overflow:hidden;border-radius:18px;padding:17px;border:1px solid var(--border);min-height:142px;cursor:pointer}
-.activity-card.apps{background:linear-gradient(135deg,var(--blue-soft),#fff)}
-.activity-card.screens{background:linear-gradient(135deg,var(--purple-soft),#fff)}
-.activity-card.interviews{background:linear-gradient(135deg,var(--orange-soft),#fff)}
-.activity-kicker{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#475569}
-.activity-values{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
-.period-value{background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.9);border-radius:13px;padding:10px}
-.period-value strong{display:block;font-size:27px;line-height:1}
-.period-value span{display:block;margin-top:5px;color:#64748b;font-size:11px;font-weight:650}
-.activity-foot{margin-top:10px;color:#64748b;font-size:11px}
-
-.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:22px}
-.stat{background:rgba(255,255,255,.92);border:1px solid var(--border);padding:18px;border-radius:14px}
-.stat .n{font-size:29px;font-weight:750}
-.stat .label{font-size:13px;color:var(--muted);margin-top:3px}
-
-.toolbar{display:grid;grid-template-columns:2fr repeat(3,1fr);gap:10px;background:var(--card);border:1px solid var(--border);padding:14px;border-radius:14px 14px 0 0}
-.table-wrap{overflow:auto;background:#fff;border:1px solid var(--border);border-top:0;border-radius:0 0 14px 14px}
-table{width:100%;border-collapse:collapse;min-width:1350px}
-th{position:sticky;top:0;background:#fafafa;color:#4b5563;text-align:left;font-size:12px;padding:12px;border-bottom:1px solid var(--border)}
-td{padding:13px 12px;border-bottom:1px solid #f0f1f3;vertical-align:top;font-size:14px}
-.company{font-weight:750}
-.role{color:#374151;margin-top:2px}
-.muted{color:var(--muted)}
-.pill{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:12px;font-weight:650;white-space:nowrap;background:var(--soft)}
-.status-applied{background:#eff6ff;color:#1d4ed8}
-.status-recruiter-screen{background:#faf5ff;color:#7e22ce}
-.status-interviewing,.status-final-round{background:#fff7ed;color:#9a3412}
-.status-offer{background:#ecfdf5;color:#065f46}
-.status-rejected,.status-withdrawn{background:#fef2f2;color:#991b1b}
-.source-sourced{background:#eef2ff;color:#3730a3}
-.source-applied{background:#ecfdf5;color:#065f46}
-.link{color:#2563eb;text-decoration:none}
-.row-actions{display:flex;gap:6px;flex-wrap:wrap}
-.row-actions button{padding:7px 9px;font-size:12px}
-.empty{text-align:center;padding:56px 20px;color:var(--muted)}
-.notice{background:#fffbeb;border:1px solid #fde68a;padding:14px 16px;border-radius:12px;margin-bottom:18px}
-
-.discovery-head{display:flex;justify-content:space-between;align-items:flex-end;gap:15px;margin-bottom:14px}
-.discovery-head h2{margin:0}
-.discovery-head p{margin:5px 0 0;color:var(--muted);font-size:13px}
-.discovery-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
-.disc-stat{background:#fff;border:1px solid var(--border);border-radius:14px;padding:15px}
-.disc-stat strong{font-size:24px;display:block}
-.disc-stat span{font-size:12px;color:var(--muted)}
-.match{font-weight:800}
-.match.high{color:#047857}
-.match.mid{color:#b45309}
-.match.low{color:#b91c1c}
-.decision-pass{background:#fef2f2;color:#991b1b}
-.decision-considering{background:#fff7ed;color:#9a3412}
-.decision-applied{background:#ecfdf5;color:#065f46}
-
-dialog{border:0;border-radius:18px;width:min(880px,calc(100vw - 28px));padding:0;box-shadow:0 25px 80px rgba(0,0,0,.2)}
-dialog::backdrop{background:rgba(17,24,39,.45)}
-.modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border-bottom:1px solid var(--border)}
-.modal-head h2{margin:0;font-size:22px}
-.modal-body{padding:22px}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
-.full{grid-column:1/-1}
-.modal-foot{display:flex;justify-content:flex-end;gap:9px;padding:16px 22px 22px}
-label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
-.choice-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.choice-grid button{padding:14px}
-.quick-reasons{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.quick-reasons button{padding:7px 10px;background:#fff;border:1px solid var(--border);font-size:12px}
-.quick-reasons button.selected{background:#111827;color:#fff}
-
-.insight-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
-.insight-box{border:1px solid var(--border);border-radius:14px;padding:12px;background:#fafafa}
-.insight-box .k{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:800}
-.insight-box .v{font-size:22px;font-weight:800;margin-top:4px}
-.activity-detail-list{display:grid;gap:8px;margin-top:12px}
-.activity-detail-row{border:1px solid var(--border);border-radius:13px;padding:12px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;background:white}
-.activity-detail-row .title{font-weight:800}
-.activity-detail-row .sub{color:var(--muted);font-size:12px;margin-top:3px}
-.activity-detail-row .date{font-weight:750;white-space:nowrap}
-
-/* Clickable summary statistics */
-.stats .stat[role="button"]{
-  cursor:pointer;
-  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
-}
-.stats .stat[role="button"]:hover{
-  transform:translateY(-2px);
-  box-shadow:0 12px 28px rgba(15,23,42,.10);
-  border-color:#c7d2fe;
-}
-.stats .stat[role="button"]:focus-visible{
-  outline:3px solid rgba(79,70,229,.25);
-  outline-offset:2px;
+:root {
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --text: #17181b;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #111827;
+  --blue-soft: #eff6ff;
+  --purple-soft: #f5f3ff;
+  --orange-soft: #fff7ed;
+  --green: #047857;
+  --red: #991b1b;
 }
 
-@media(max-width:900px){
-  .stats,.discovery-stats{grid-template-columns:repeat(2,1fr)}
-  .activity-grid{grid-template-columns:1fr}
-  .toolbar{grid-template-columns:1fr}
-  .topbar,.discovery-head{flex-direction:column;align-items:stretch}
-  .grid{grid-template-columns:1fr}
-  .full{grid-column:auto}
-  .choice-grid{grid-template-columns:1fr}
+* {
+  box-sizing: border-box;
 }
-@media(max-width:700px){
-  .insight-summary{grid-template-columns:1fr}
-  .activity-detail-row{grid-template-columns:1fr}
+
+body {
+  margin: 0;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.wrap {
+  max-width: 1450px;
+  margin: auto;
+  padding: 32px 24px 60px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 32px;
+}
+
+.subtitle,
+.muted,
+.userline {
+  color: var(--muted);
+}
+
+.subtitle {
+  margin: 7px 0 0;
+}
+
+.userline {
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 16px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.primary {
+  background: #111827;
+  color: #fff;
+}
+
+.secondary {
+  background: #fff;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.danger {
+  background: #fef2f2;
+  color: var(--red);
+}
+
+.success {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.actions,
+.tabs,
+.row-actions,
+.quick-reasons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 9px;
+  padding: 10px 11px;
+  font: inherit;
+}
+
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: min(430px, 100%);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.08);
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.auth-msg {
+  font-size: 13px;
+  margin-top: 12px;
+  min-height: 18px;
+}
+
+.tabs {
+  margin-bottom: 20px;
+}
+
+.tab {
+  background: #fff;
+  border: 1px solid var(--border);
+  color: #4b5563;
+}
+
+.tab.active {
+  background: #111827;
+  color: #fff;
+}
+
+.activity-shell {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 18px;
+  margin-bottom: 22px;
+}
+
+.activity-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.activity-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.activity-head p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.activity-card {
+  border-radius: 18px;
+  padding: 17px;
+  border: 1px solid var(--border);
+  min-height: 142px;
+  cursor: pointer;
+}
+
+.apps {
+  background: linear-gradient(135deg, var(--blue-soft), #fff);
+}
+
+.screens {
+  background: linear-gradient(135deg, var(--purple-soft), #fff);
+}
+
+.interviews {
+  background: linear-gradient(135deg, var(--orange-soft), #fff);
+}
+
+.activity-kicker {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+}
+
+.activity-values {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.period-value {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid #fff;
+  border-radius: 13px;
+  padding: 10px;
+}
+
+.period-value strong {
+  display: block;
+  font-size: 27px;
+}
+
+.period-value span,
+.activity-foot {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.activity-foot {
+  margin-top: 10px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.stat {
+  background: #fff;
+  border: 1px solid var(--border);
+  padding: 18px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: 0.18s;
+}
+
+.stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.stat .n {
+  font-size: 29px;
+  font-weight: 750;
+}
+
+.stat .label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, 1fr);
+  gap: 10px;
+  background: #fff;
+  border: 1px solid var(--border);
+  padding: 14px;
+  border-radius: 14px 14px 0 0;
+}
+
+.table-wrap {
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 14px 14px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1300px;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: #fafafa;
+  color: #4b5563;
+  text-align: left;
+  font-size: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 13px 12px;
+  border-bottom: 1px solid #f0f1f3;
+  vertical-align: top;
+  font-size: 14px;
+}
+
+.company {
+  font-weight: 750;
+}
+
+.role {
+  color: #374151;
+  margin-top: 2px;
+}
+
+.pill {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  background: #f3f4f6;
+}
+
+.link {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--muted);
+}
+
+.notice {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  padding: 14px 16px;
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+
+.discovery-head {
+  margin-bottom: 14px;
+}
+
+.discovery-head h2 {
+  margin: 0;
+}
+
+.discovery-head p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.discovery-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.disc-stat {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 15px;
+}
+
+.disc-stat strong {
+  font-size: 24px;
+  display: block;
+}
+
+.disc-stat span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.match {
+  font-weight: 800;
+}
+
+.high {
+  color: #047857;
+}
+
+.mid {
+  color: #b45309;
+}
+
+.low {
+  color: #b91c1c;
+}
+
+dialog {
+  border: 0;
+  border-radius: 18px;
+  width: min(880px, calc(100vw - 28px));
+  padding: 0;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.2);
+}
+
+dialog::backdrop {
+  background: rgba(17, 24, 39, 0.45);
+}
+
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.modal-body {
+  padding: 22px;
+}
+
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 16px 22px 22px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.quick-reasons {
+  margin-top: 8px;
+}
+
+.quick-reasons button {
+  padding: 7px 10px;
+  background: #fff;
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.quick-reasons button.selected {
+  background: #111827;
+  color: #fff;
+}
+
+.insight-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.insight-box {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.insight-box .k {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.insight-box .v {
+  font-size: 22px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.activity-detail-list {
+  display: grid;
+  gap: 8px;
+}
+
+.activity-detail-row {
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  background: #fff;
+}
+
+.activity-detail-row .title {
+  font-weight: 800;
+}
+
+.activity-detail-row .sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.activity-detail-row .date {
+  font-weight: 750;
+}
+
+@media (max-width: 900px) {
+  .stats,
+  .discovery-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .activity-grid,
+  .toolbar,
+  .grid,
+  .choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    flex-direction: column;
+  }
+
+  .full {
+    grid-column: auto;
+  }
 }
 </style>
 </head>
+
 <body>
 
 <div id="authView" class="auth-shell">
   <div class="auth-card">
     <h1>Job Search Tracker</h1>
-    <p>Sign in to access the same job data on every device.</p>
+    <p class="muted">
+      Sign in to access the same job data on every device.
+    </p>
+
     <div class="stack">
-      <div><label>Email</label><input id="authEmail" type="email"></div>
-      <div><label>Password</label><input id="authPassword" type="password"></div>
-      <button class="primary" onclick="signIn()">Sign In</button>
-      <button class="secondary" onclick="signUp()">Create Account</button>
+      <div>
+        <label>Email</label>
+        <input id="authEmail" type="email">
+      </div>
+
+      <div>
+        <label>Password</label>
+        <input id="authPassword" type="password">
+      </div>
+
+      <button class="primary" id="signInBtn">
+        Sign In
+      </button>
+
+      <button class="secondary" id="signUpBtn">
+        Create Account
+      </button>
     </div>
+
     <div id="authMsg" class="auth-msg muted"></div>
   </div>
 </div>
@@ -167,81 +624,149 @@ label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
   <div class="topbar">
     <div>
       <h1>Job Search Tracker</h1>
-      <p class="subtitle">Discover, review, apply, and track — without double entry.</p>
+
+      <p class="subtitle">
+        Discover, review, apply, and track — without double entry.
+      </p>
+
       <div id="userEmail" class="userline"></div>
     </div>
 
     <div class="actions">
-      <button class="secondary" onclick="document.getElementById('csvFileInput').click()">Import CSV</button>
-      <input id="csvFileInput" class="hidden" type="file" accept=".csv,text/csv" onchange="importCSV(event)">
-      <button class="secondary" onclick="exportCSV()">Export CSV</button>
-      <button class="secondary" onclick="signOut()">Sign Out</button>
-      <button class="primary" onclick="openForm()">+ Add Job</button>
+      <button class="secondary" id="importBtn">
+        Import CSV
+      </button>
+
+      <input
+        id="csvFileInput"
+        class="hidden"
+        type="file"
+        accept=".csv,text/csv"
+      >
+
+      <button class="secondary" id="exportBtn">
+        Export CSV
+      </button>
+
+      <button class="secondary" id="signOutBtn">
+        Sign Out
+      </button>
+
+      <button class="primary" id="addJobBtn">
+        + Add Job
+      </button>
     </div>
   </div>
 
   <div class="tabs">
-    <button type="button" id="tabTracker" class="tab active">Application Tracker</button>
-    <button type="button" id="tabDiscovery" class="tab">
-      Job Discovery <span id="newDiscoveryBadge"></span>
+    <button id="tabTracker" class="tab active">
+      Application Tracker
+    </button>
+
+    <button id="tabDiscovery" class="tab">
+      Job Discovery
+      <span id="newDiscoveryBadge"></span>
     </button>
   </div>
 
   <div id="trackerView">
 
     <section class="activity-shell">
+
       <div class="activity-head">
         <div>
           <h2>Job search activity</h2>
-          <p id="activityPeriodLabel">Your week and month update automatically.</p>
+
+          <p id="activityPeriodLabel">
+            Your week and month update automatically.
+          </p>
         </div>
       </div>
 
       <div class="activity-grid">
 
-        <div id="activityApplications" class="activity-card apps" role="button" tabindex="0">
-          <div class="activity-kicker">Applications</div>
+        <div
+          id="activityApplications"
+          class="activity-card apps"
+          role="button"
+          tabindex="0"
+        >
+          <div class="activity-kicker">
+            Applications
+          </div>
+
           <div class="activity-values">
             <div class="period-value">
               <strong id="appsWeek">0</strong>
               <span>This week</span>
             </div>
+
             <div class="period-value">
               <strong id="appsMonth">0</strong>
               <span>This month</span>
             </div>
           </div>
-          <div class="activity-foot" id="appsPace"></div>
+
+          <div
+            class="activity-foot"
+            id="appsPace"
+          ></div>
         </div>
 
-        <div id="activityScreens" class="activity-card screens" role="button" tabindex="0">
-          <div class="activity-kicker">Recruiter screens</div>
+        <div
+          id="activityScreens"
+          class="activity-card screens"
+          role="button"
+          tabindex="0"
+        >
+          <div class="activity-kicker">
+            Recruiter screens
+          </div>
+
           <div class="activity-values">
             <div class="period-value">
               <strong id="screensWeek">0</strong>
               <span>This week</span>
             </div>
+
             <div class="period-value">
               <strong id="screensMonth">0</strong>
               <span>This month</span>
             </div>
           </div>
-          <div class="activity-foot" id="screensPace"></div>
+
+          <div
+            class="activity-foot"
+            id="screensPace"
+          ></div>
         </div>
 
-        <div id="activityInterviews" class="activity-card interviews" role="button" tabindex="0">
-          <div class="activity-kicker">Interviews</div>
+        <div
+          id="activityInterviews"
+          class="activity-card interviews"
+          role="button"
+          tabindex="0"
+        >
+          <div class="activity-kicker">
+            Interviews
+          </div>
+
           <div class="activity-values">
             <div class="period-value">
               <strong id="interviewsWeek">0</strong>
               <span>This week</span>
             </div>
+
             <div class="period-value">
               <strong id="interviewsMonth">0</strong>
               <span>This month</span>
             </div>
           </div>
-          <div class="activity-foot" id="interviewsPace"></div>
+
+          <div
+            class="activity-foot"
+            id="interviewsPace"
+          ></div>
         </div>
 
       </div>
@@ -249,38 +774,108 @@ label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
 
     <section class="stats">
 
-      <div id="statTotal" class="stat" role="button" tabindex="0">
-        <div class="n" id="totalCount">0</div>
-        <div class="label">Total opportunities</div>
+      <div
+        id="statTotal"
+        class="stat"
+        role="button"
+        tabindex="0"
+      >
+        <div
+          class="n"
+          id="totalCount"
+        >
+          0
+        </div>
+
+        <div class="label">
+          Total opportunities
+        </div>
       </div>
 
-      <div id="statApplied" class="stat" role="button" tabindex="0">
-        <div class="n" id="appliedCount">0</div>
-        <div class="label">Applications submitted</div>
+      <div
+        id="statApplied"
+        class="stat"
+        role="button"
+        tabindex="0"
+      >
+        <div
+          class="n"
+          id="appliedCount"
+        >
+          0
+        </div>
+
+        <div class="label">
+          Applications submitted
+        </div>
       </div>
 
-      <div id="statSourced" class="stat" role="button" tabindex="0">
-        <div class="n" id="sourcedCount">0</div>
-        <div class="label">Recruiter sourced</div>
+      <div
+        id="statSourced"
+        class="stat"
+        role="button"
+        tabindex="0"
+      >
+        <div
+          class="n"
+          id="sourcedCount"
+        >
+          0
+        </div>
+
+        <div class="label">
+          Recruiter sourced
+        </div>
       </div>
 
-      <div id="statInterviewing" class="stat" role="button" tabindex="0">
-        <div class="n" id="interviewCount">0</div>
-        <div class="label">Currently interviewing</div>
+      <div
+        id="statInterviewing"
+        class="stat"
+        role="button"
+        tabindex="0"
+      >
+        <div
+          class="n"
+          id="interviewCount"
+        >
+          0
+        </div>
+
+        <div class="label">
+          Currently interviewing
+        </div>
       </div>
 
-      <div id="statResponse" class="stat" role="button" tabindex="0">
-        <div class="n" id="responseRate">0%</div>
-        <div class="label">Response rate</div>
+      <div
+        id="statResponse"
+        class="stat"
+        role="button"
+        tabindex="0"
+      >
+        <div
+          class="n"
+          id="responseRate"
+        >
+          0%
+        </div>
+
+        <div class="label">
+          Response rate
+        </div>
       </div>
 
     </section>
 
     <section>
-      <div class="toolbar">
-        <input id="search" placeholder="Search company, role, recruiter…" oninput="renderTracker()">
 
-        <select id="statusFilter" onchange="renderTracker()">
+      <div class="toolbar">
+
+        <input
+          id="search"
+          placeholder="Search company, role, recruiter…"
+        >
+
+        <select id="statusFilter">
           <option value="">All statuses</option>
           <option>Interested</option>
           <option>Applied</option>
@@ -293,21 +888,23 @@ label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
           <option>Ghosted</option>
         </select>
 
-        <select id="sourceFilter" onchange="renderTracker()">
+        <select id="sourceFilter">
           <option value="">All sources</option>
           <option>Applied</option>
           <option>Recruiter Sourced</option>
           <option>Referral</option>
         </select>
 
-        <select id="responseFilter" onchange="renderTracker()">
+        <select id="responseFilter">
           <option value="">Any response</option>
           <option value="Yes">Heard back</option>
           <option value="No">No response</option>
         </select>
+
       </div>
 
       <div class="table-wrap">
+
         <table>
           <thead>
             <tr>
@@ -326,59 +923,79 @@ label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
               <th>Actions</th>
             </tr>
           </thead>
+
           <tbody id="jobRows"></tbody>
         </table>
 
-        <div id="empty" class="empty" style="display:none">
-          No jobs yet. Add your first opportunity.
+        <div
+          id="empty"
+          class="empty hidden"
+        >
+          No jobs yet.
         </div>
       </div>
+
     </section>
 
   </div>
 
-  <div id="discoveryView" class="hidden">
+  <div
+    id="discoveryView"
+    class="hidden"
+  >
 
     <div class="discovery-head">
-      <div>
-        <h2>Job Discovery</h2>
-        <p>
-          Jobs stay here until you confirm you actually applied.
-          Passing on a role does not inflate your application totals.
-        </p>
-      </div>
+      <h2>Job Discovery</h2>
 
-      <button class="primary" onclick="openDiscoveryForm()">+ Add discovery job</button>
+      <p>
+        Automatically discovered jobs stay here until you confirm
+        you applied or pass on them.
+      </p>
     </div>
 
-    <div id="discoverySetupNotice" class="notice hidden">
-      <strong>Discovery database setup needed.</strong><br>
-      Run the included Supabase SQL once, then refresh this page.
+    <div
+      id="discoverySetupNotice"
+      class="notice hidden"
+    >
+      <strong>
+        Discovery database setup needed.
+      </strong>
+      <br>
+      Run the Supabase discovery SQL, then refresh.
     </div>
 
     <div class="discovery-stats">
+
       <div class="disc-stat">
         <strong id="discNew">0</strong>
         <span>New / unreviewed</span>
       </div>
+
       <div class="disc-stat">
         <strong id="discConsidering">0</strong>
         <span>Considering</span>
       </div>
+
       <div class="disc-stat">
         <strong id="discApplied">0</strong>
         <span>Confirmed applied</span>
       </div>
+
       <div class="disc-stat">
         <strong id="discPassed">0</strong>
         <span>Passed</span>
       </div>
+
     </div>
 
     <div class="toolbar">
-      <input id="discSearch" placeholder="Search discovered jobs…" oninput="renderDiscovery()">
 
-      <select id="discDecisionFilter" onchange="renderDiscovery()">
+      <input
+        id="discSearch"
+        placeholder="Search discovered jobs…"
+      >
+
+      <select id="discDecisionFilter">
         <option value="">All decisions</option>
         <option value="new">New</option>
         <option value="considering">Considering</option>
@@ -386,22 +1003,24 @@ label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
         <option value="passed">Passed</option>
       </select>
 
-      <select id="discMatchFilter" onchange="renderDiscovery()">
+      <select id="discMatchFilter">
         <option value="">All match scores</option>
         <option value="80">80%+</option>
         <option value="70">70%+</option>
         <option value="60">60%+</option>
       </select>
 
-      <select id="discAgeFilter" onchange="renderDiscovery()">
+      <select id="discAgeFilter">
         <option value="">Any posting age</option>
         <option value="1">Last 24 hours</option>
         <option value="3">Last 3 days</option>
         <option value="7">Last 7 days</option>
       </select>
+
     </div>
 
     <div class="table-wrap">
+
       <table>
         <thead>
           <tr>
@@ -415,192 +1034,1214 @@ label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
             <th>Actions</th>
           </tr>
         </thead>
+
         <tbody id="discoveryRows"></tbody>
       </table>
 
-      <div id="discoveryEmpty" class="empty">
+      <div
+        id="discoveryEmpty"
+        class="empty"
+      >
         No discovered jobs yet.
       </div>
+
     </div>
 
   </div>
 </div>
 
+<dialog id="jobDialog">
+
+  <form id="jobForm">
+
+    <div class="modal-head">
+      <h2 id="modalTitle">
+        Add Job
+      </h2>
+
+      <button
+        type="button"
+        class="secondary"
+        id="closeJobDialog"
+      >
+        Close
+      </button>
+    </div>
+
+    <div class="modal-body">
+
+      <input
+        type="hidden"
+        id="editId"
+      >
+
+      <div class="grid">
+
+        <div>
+          <label>Company *</label>
+          <input id="company" required>
+        </div>
+
+        <div>
+          <label>Role / Job Title *</label>
+          <input id="role" required>
+        </div>
+
+        <div>
+          <label>
+            How did this opportunity start?
+          </label>
+
+          <select id="source">
+            <option>Applied</option>
+            <option>Recruiter Sourced</option>
+            <option>Referral</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Status</label>
+
+          <select id="status">
+            <option>Interested</option>
+            <option>Applied</option>
+            <option>Recruiter Screen</option>
+            <option>Interviewing</option>
+            <option>Final Round</option>
+            <option>Offer</option>
+            <option>Rejected</option>
+            <option>Withdrawn</option>
+            <option>Ghosted</option>
+          </select>
+        </div>
+
+        <div>
+          <label>
+            Date Applied / Entered Pipeline
+          </label>
+
+          <input
+            id="dateApplied"
+            type="date"
+          >
+        </div>
+
+        <div>
+          <label>
+            Recruiter Screen Date
+          </label>
+
+          <input
+            id="recruiterScreenDate"
+            type="date"
+          >
+        </div>
+
+        <div>
+          <label>
+            Interview Date
+          </label>
+
+          <input
+            id="interviewDate"
+            type="date"
+          >
+        </div>
+
+        <div>
+          <label>
+            Have you heard back?
+          </label>
+
+          <select id="heardBack">
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </div>
+
+        <div>
+          <label>
+            Date You Heard Back
+          </label>
+
+          <input
+            id="dateHeardBack"
+            type="date"
+          >
+        </div>
+
+        <div>
+          <label>
+            Last Contact / Update
+          </label>
+
+          <input
+            id="lastContact"
+            type="date"
+          >
+        </div>
+
+        <div>
+          <label>
+            Salary Min
+          </label>
+
+          <input
+            id="salaryMin"
+            type="number"
+          >
+        </div>
+
+        <div>
+          <label>
+            Salary Max
+          </label>
+
+          <input
+            id="salaryMax"
+            type="number"
+          >
+        </div>
+
+        <div>
+          <label>
+            Bonus / OTE / Equity
+          </label>
+
+          <input id="additionalComp">
+        </div>
+
+        <div>
+          <label>
+            Recruiter Name
+          </label>
+
+          <input id="recruiter">
+        </div>
+
+        <div>
+          <label>
+            Recruiter Email / Contact
+          </label>
+
+          <input id="recruiterContact">
+        </div>
+
+        <div>
+          <label>
+            Location
+          </label>
+
+          <input id="location">
+        </div>
+
+        <div>
+          <label>
+            Work Arrangement
+          </label>
+
+          <select id="workArrangement">
+            <option value=""></option>
+            <option>Remote</option>
+            <option>Hybrid</option>
+            <option>On-site</option>
+          </select>
+        </div>
+
+        <div>
+          <label>
+            Job URL
+          </label>
+
+          <input
+            id="jobUrl"
+            type="url"
+          >
+        </div>
+
+        <div class="full">
+          <label>
+            Interview Stage / Next Step
+          </label>
+
+          <input id="nextStep">
+        </div>
+
+        <div class="full">
+          <label>
+            Notes
+          </label>
+
+          <textarea id="notes"></textarea>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="modal-foot">
+
+      <button
+        type="button"
+        class="secondary"
+        id="cancelJob"
+      >
+        Cancel
+      </button>
+
+      <button
+        type="submit"
+        class="primary"
+      >
+        Save Job
+      </button>
+
+    </div>
+
+  </form>
+</dialog>
+
+<dialog id="applyConfirmDialog">
+
+  <div class="modal-head">
+
+    <h2>
+      Did you submit your application?
+    </h2>
+
+    <button
+      class="secondary"
+      id="closeApplyDialog"
+    >
+      Close
+    </button>
+
+  </div>
+
+  <div class="modal-body">
+
+    <div
+      id="applyConfirmJob"
+      class="notice"
+    ></div>
+
+    <div class="choice-grid">
+
+      <button
+        class="success"
+        id="yesAppliedBtn"
+      >
+        Yes, I applied
+      </button>
+
+      <button
+        class="secondary"
+        id="notYetBtn"
+      >
+        No, not yet
+      </button>
+
+      <button
+        class="danger"
+        id="decidedNoBtn"
+      >
+        I decided not to apply
+      </button>
+
+    </div>
+
+    <div
+      id="passReasonArea"
+      class="hidden"
+      style="margin-top:18px"
+    >
+
+      <label>
+        Why did you decide not to apply?
+      </label>
+
+      <div
+        id="reasonButtons"
+        class="quick-reasons"
+      ></div>
+
+      <label style="margin-top:14px">
+        Optional note
+      </label>
+
+      <textarea id="passNote"></textarea>
+
+      <div
+        style="
+          display:flex;
+          justify-content:flex-end;
+          margin-top:10px;
+        "
+      >
+
+        <button
+          class="danger"
+          id="savePassBtn"
+        >
+          Save as passed
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+</dialog>
+
 <dialog id="activityDialog">
+
   <div class="modal-head">
-    <h2 id="activityDialogTitle">Activity</h2>
-    <button type="button" class="secondary" id="activityDialogClose">Close</button>
+
+    <h2 id="activityDialogTitle">
+      Activity
+    </h2>
+
+    <button
+      class="secondary"
+      id="activityDialogClose"
+    >
+      Close
+    </button>
+
   </div>
 
   <div class="modal-body">
-    <div id="activityInsightSummary" class="insight-summary"></div>
-    <div id="activityInsightPattern" class="notice"></div>
-    <div id="activityInsightList" class="activity-detail-list"></div>
+
+    <div
+      id="activityInsightSummary"
+      class="insight-summary"
+    ></div>
+
+    <div
+      id="activityInsightPattern"
+      class="notice"
+    ></div>
+
+    <div
+      id="activityInsightList"
+      class="activity-detail-list"
+    ></div>
+
   </div>
 </dialog>
-  <dialog id="activityDialog">
-  <div class="modal-head">
-    <h2 id="activityDialogTitle">Activity</h2>
-    <button type="button" class="secondary" id="activityDialogClose">Close</button>
-  </div>
 
-  <div class="modal-body">
-    <div id="activityInsightSummary" class="insight-summary"></div>
-    <div id="activityInsightPattern" class="notice"></div>
-    <div id="activityInsightList" class="activity-detail-list"></div>
-  </div>
-</dialog>
-  function switchView(which) {
-  const showTracker =
-    which === "tracker";
+<script>
+const SUPABASE_URL =
+  "https://pzspwjkwzlxiovjgoeqm.supabase.co";
 
-  trackerView.classList.toggle(
-    "hidden",
-    !showTracker
+const SUPABASE_KEY =
+  "sb_publishable_a8q8_qfLLPQqlOqCG911MA_vTHNNwcU";
+
+const sb =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
   );
 
-  discoveryView.classList.toggle(
-    "hidden",
-    showTracker
-  );
+const $ =
+  id =>
+    document.getElementById(id);
 
-  tabTracker.classList.toggle(
-    "active",
-    showTracker
-  );
+let currentUser = null;
+let jobs = [];
+let discoveredJobs = [];
+let activeDiscoveryJob = null;
+let selectedPassReason = "";
 
-  tabDiscovery.classList.toggle(
-    "active",
-    !showTracker
-  );
+const PASS_REASONS = [
+  "Salary too low",
+  "Location/onsite requirements",
+  "Clearance requirement",
+  "Experience gap",
+  "Role changed/closed",
+  "Not interested in company",
+  "Poor match after review",
+  "Already applied elsewhere",
+  "Duplicate posting",
+  "Other"
+];
 
-  tabTracker.setAttribute(
-    "aria-selected",
-    showTracker
-      ? "true"
-      : "false"
-  );
+const dbMap = {
+  dateApplied:
+    "date_applied",
 
-  tabDiscovery.setAttribute(
-    "aria-selected",
-    showTracker
-      ? "false"
-      : "true"
+  recruiterScreenDate:
+    "recruiter_screen_date",
+
+  interviewDate:
+    "interview_date",
+
+  heardBack:
+    "heard_back",
+
+  dateHeardBack:
+    "date_heard_back",
+
+  lastContact:
+    "last_contact",
+
+  salaryMin:
+    "salary_min",
+
+  salaryMax:
+    "salary_max",
+
+  additionalComp:
+    "additional_comp",
+
+  recruiterContact:
+    "recruiter_contact",
+
+  workArrangement:
+    "work_arrangement",
+
+  jobUrl:
+    "job_url",
+
+  nextStep:
+    "next_step"
+};
+
+const fields = [
+  "company",
+  "role",
+  "source",
+  "status",
+  "dateApplied",
+  "recruiterScreenDate",
+  "interviewDate",
+  "heardBack",
+  "dateHeardBack",
+  "lastContact",
+  "salaryMin",
+  "salaryMax",
+  "additionalComp",
+  "recruiter",
+  "recruiterContact",
+  "location",
+  "workArrangement",
+  "jobUrl",
+  "nextStep",
+  "notes"
+];
+
+function esc(v = "") {
+  return String(v ?? "")
+    .replace(
+      /[&<>"']/g,
+      m => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[m]
+    );
+}
+
+function fmtDate(v) {
+  if (!v) {
+    return "—";
+  }
+
+  const p =
+    String(v).split("-");
+
+  return p.length === 3
+    ? `${p[1]}/${p[2]}/${p[0]}`
+    : v;
+}
+
+function money(v) {
+  return (
+    v !== "" &&
+    v != null
+  )
+    ? "$" +
+      Number(v)
+        .toLocaleString()
+    : "";
+}
+
+function todayISO() {
+  const d =
+    new Date();
+
+  const off =
+    d.getTimezoneOffset();
+
+  return new Date(
+    d.getTime() -
+    off * 60000
+  )
+    .toISOString()
+    .slice(0, 10);
+}
+
+function parseDate(v) {
+  if (!v) {
+    return null;
+  }
+
+  const [
+    y,
+    m,
+    d
+  ] =
+    String(v)
+      .split("-")
+      .map(Number);
+
+  return new Date(
+    y,
+    m - 1,
+    d,
+    12
   );
 }
 
-tabTracker.addEventListener(
-  "click",
-  event => {
-    event.preventDefault();
-    switchView("tracker");
-  }
-);
+function startOfWeek(d) {
+  const x =
+    new Date(
+      d.getFullYear(),
+      d.getMonth(),
+      d.getDate(),
+      12
+    );
 
-tabDiscovery.addEventListener(
-  "click",
-  event => {
-    event.preventDefault();
-    switchView("discovery");
-  }
-);
+  const day =
+    x.getDay() || 7;
 
+  x.setDate(
+    x.getDate() +
+    (1 - day)
+  );
 
-/* =========================================================
-   ACTIVITY DETAIL DIALOG
-   ========================================================= */
+  return x;
+}
 
-const activityDialog =
-  byId("activityDialog");
+function endOfWeek(d) {
+  const x =
+    startOfWeek(d);
 
-const activityDialogTitle =
-  byId("activityDialogTitle");
+  x.setDate(
+    x.getDate() + 6
+  );
 
-const activityDialogClose =
-  byId("activityDialogClose");
+  return x;
+}
 
-const activityInsightSummary =
-  byId("activityInsightSummary");
-
-const activityInsightPattern =
-  byId("activityInsightPattern");
-
-const activityInsightList =
-  byId("activityInsightList");
-
-
-activityDialogClose.addEventListener(
-  "click",
-  () => {
-    activityDialog.close();
-  }
-);
-
-
-function activityDetailRow(
-  job,
-  dateField
+function inRange(
+  v,
+  s,
+  e
 ) {
-  const date =
-    dateField
-      ? job[dateField]
-      : (
-          job.interviewDate ||
-          job.recruiterScreenDate ||
-          job.dateHeardBack ||
-          job.dateApplied ||
-          ""
+  const d =
+    parseDate(v);
+
+  return (
+    !!d &&
+    d >= s &&
+    d <= e
+  );
+}
+
+function toDb(obj) {
+  const out = {};
+
+  for (
+    const [k, v]
+    of Object.entries(obj)
+  ) {
+    out[
+      dbMap[k] || k
+    ] =
+      v === ""
+        ? null
+        : v;
+  }
+
+  if (
+    out.salary_min != null
+  ) {
+    out.salary_min =
+      Number(
+        out.salary_min
+      );
+  }
+
+  if (
+    out.salary_max != null
+  ) {
+    out.salary_max =
+      Number(
+        out.salary_max
+      );
+  }
+
+  return out;
+}
+
+function fromDb(j) {
+  return {
+    id:
+      j.id,
+
+    company:
+      j.company || "",
+
+    role:
+      j.role || "",
+
+    source:
+      j.source || "",
+
+    status:
+      j.status || "",
+
+    dateApplied:
+      j.date_applied || "",
+
+    recruiterScreenDate:
+      j.recruiter_screen_date || "",
+
+    interviewDate:
+      j.interview_date || "",
+
+    heardBack:
+      j.heard_back || "No",
+
+    dateHeardBack:
+      j.date_heard_back || "",
+
+    lastContact:
+      j.last_contact || "",
+
+    salaryMin:
+      j.salary_min ?? "",
+
+    salaryMax:
+      j.salary_max ?? "",
+
+    additionalComp:
+      j.additional_comp || "",
+
+    recruiter:
+      j.recruiter || "",
+
+    recruiterContact:
+      j.recruiter_contact || "",
+
+    location:
+      j.location || "",
+
+    workArrangement:
+      j.work_arrangement || "",
+
+    jobUrl:
+      j.job_url || "",
+
+    nextStep:
+      j.next_step || "",
+
+    notes:
+      j.notes || ""
+  };
+}
+
+function fromDiscovery(j) {
+  return {
+    id:
+      j.id,
+
+    company:
+      j.company || "",
+
+    role:
+      j.role || "",
+
+    jobUrl:
+      j.job_url || "",
+
+    postedDate:
+      j.posted_date || "",
+
+    location:
+      j.location || "",
+
+    workArrangement:
+      j.work_arrangement || "",
+
+    salaryMin:
+      j.salary_min ?? "",
+
+    salaryMax:
+      j.salary_max ?? "",
+
+    matchScore:
+      j.match_score ?? "",
+
+    sourceSite:
+      j.source_site || "",
+
+    matchSummary:
+      j.match_summary || "",
+
+    notes:
+      j.notes || "",
+
+    decision:
+      j.decision || "new",
+
+    passReason:
+      j.pass_reason || "",
+
+    passNote:
+      j.pass_note || ""
+  };
+}
+
+function comp(j) {
+  const lo =
+    money(
+      j.salaryMin
+    );
+
+  const hi =
+    money(
+      j.salaryMax
+    );
+
+  return (
+    lo &&
+    hi
+  )
+    ? `${lo}–${hi}`
+    : lo
+      ? `${lo}+`
+      : hi
+        ? `Up to ${hi}`
+        : j.additionalComp ||
+          "—";
+}
+
+async function enterApp(
+  user
+) {
+  currentUser =
+    user;
+
+  $("authView")
+    .classList
+    .add("hidden");
+
+  $("appView")
+    .classList
+    .remove("hidden");
+
+  $("userEmail")
+    .textContent =
+      user.email || "";
+
+  await Promise.all([
+    loadJobs(),
+    loadDiscovery()
+  ]);
+}
+
+async function loadJobs() {
+  const {
+    data,
+    error
+  } =
+    await sb
+      .from("jobs")
+      .select("*")
+      .eq(
+        "user_id",
+        currentUser.id
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false
+        }
+      );
+
+  if (error) {
+    alert(
+      "Could not load jobs: " +
+      error.message
+    );
+
+    return;
+  }
+
+  jobs =
+    (data || [])
+      .map(fromDb);
+
+  renderTracker();
+}
+
+async function loadDiscovery() {
+  const {
+    data,
+    error
+  } =
+    await sb
+      .from(
+        "discovered_jobs"
+      )
+      .select("*")
+      .eq(
+        "user_id",
+        currentUser.id
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false
+        }
+      );
+
+  if (error) {
+    $("discoverySetupNotice")
+      .classList
+      .remove("hidden");
+
+    discoveredJobs = [];
+
+    renderDiscovery();
+
+    return;
+  }
+
+  $("discoverySetupNotice")
+    .classList
+    .add("hidden");
+
+  discoveredJobs =
+    (data || [])
+      .map(
+        fromDiscovery
+      );
+
+  renderDiscovery();
+}
+
+function switchView(v) {
+  $("trackerView")
+    .classList
+    .toggle(
+      "hidden",
+      v !== "tracker"
+    );
+
+  $("discoveryView")
+    .classList
+    .toggle(
+      "hidden",
+      v !== "discovery"
+    );
+
+  $("tabTracker")
+    .classList
+    .toggle(
+      "active",
+      v === "tracker"
+    );
+
+  $("tabDiscovery")
+    .classList
+    .toggle(
+      "active",
+      v === "discovery"
+    );
+
+  if (
+    v === "discovery"
+  ) {
+    loadDiscovery();
+  }
+}
+
+function renderTracker() {
+  const q =
+    $("search")
+      .value
+      .toLowerCase();
+
+  const sf =
+    $("statusFilter")
+      .value;
+
+  const src =
+    $("sourceFilter")
+      .value;
+
+  const rf =
+    $("responseFilter")
+      .value;
+
+  const rows =
+    jobs.filter(
+      j => {
+        const blob =
+          [
+            j.company,
+            j.role,
+            j.recruiter,
+            j.location,
+            j.notes
+          ]
+            .join(" ")
+            .toLowerCase();
+
+        return (
+          (
+            !q ||
+            blob.includes(q)
+          ) &&
+          (
+            !sf ||
+            j.status === sf
+          ) &&
+          (
+            !src ||
+            j.source === src
+          ) &&
+          (
+            !rf ||
+            j.heardBack === rf
+          )
         );
+      }
+    );
 
-  const meta = [
-    job.status,
-    job.source,
-    job.recruiter
-  ]
-    .filter(Boolean)
-    .map(esc)
-    .join(" • ");
+  $("jobRows")
+    .innerHTML =
+      rows.map(
+        j => `
+          <tr>
 
-  return `
-    <div class="activity-detail-row">
+            <td>
+              <div class="company">
+                ${esc(j.company)}
+              </div>
 
-      <div>
-        <div class="title">
-          ${esc(job.company)} — ${esc(job.role)}
-        </div>
+              <div class="role">
+                ${esc(j.role)}
+              </div>
+            </td>
 
-        <div class="sub">
-          ${meta || "No additional details"}
-        </div>
-      </div>
+            <td>
+              <span class="pill">
+                ${esc(j.status)}
+              </span>
+            </td>
 
-      <div class="date">
-        ${fmtDate(date)}
-      </div>
+            <td>
+              <span class="pill">
+                ${esc(j.source)}
+              </span>
+            </td>
 
-    </div>
-  `;
+            <td>
+              ${fmtDate(
+                j.dateApplied
+              )}
+            </td>
+
+            <td>
+              ${fmtDate(
+                j.recruiterScreenDate
+              )}
+            </td>
+
+            <td>
+              ${fmtDate(
+                j.interviewDate
+              )}
+            </td>
+
+            <td>
+              ${esc(
+                j.heardBack
+              )}
+            </td>
+
+            <td>
+              ${fmtDate(
+                j.dateHeardBack
+              )}
+            </td>
+
+            <td>
+              ${esc(
+                comp(j)
+              )}
+            </td>
+
+            <td>
+              ${
+                j.recruiter
+                  ? `
+                    <strong>
+                      ${esc(
+                        j.recruiter
+                      )}
+                    </strong>
+                    <br>
+                    <span class="muted">
+                      ${esc(
+                        j.recruiterContact
+                      )}
+                    </span>
+                  `
+                  : "—"
+              }
+            </td>
+
+            <td>
+              ${esc(
+                [
+                  j.location,
+                  j.workArrangement
+                ]
+                  .filter(Boolean)
+                  .join(" • ") ||
+                "—"
+              )}
+            </td>
+
+            <td>
+              ${
+                j.jobUrl
+                  ? `
+                    <a
+                      class="link"
+                      href="${esc(
+                        j.jobUrl
+                      )}"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      Open
+                    </a>
+                  `
+                  : "—"
+              }
+            </td>
+
+            <td>
+              <div class="row-actions">
+
+                <button
+                  class="secondary"
+                  onclick="openJob('${j.id}')"
+                >
+                  Edit
+                </button>
+
+                <button
+                  class="danger"
+                  onclick="deleteJob('${j.id}')"
+                >
+                  Delete
+                </button>
+
+              </div>
+            </td>
+
+          </tr>
+        `
+      )
+      .join("");
+
+  $("empty")
+    .classList
+    .toggle(
+      "hidden",
+      !!rows.length
+    );
+
+  updateStats();
+  updateActivity();
 }
 
+function updateStats() {
+  const total =
+    jobs.length;
 
-function renderInsightBoxes(
-  items
-) {
-  return items.map(item => `
-    <div class="insight-box">
-      <div class="k">
-        ${esc(item.label)}
-      </div>
+  const applied =
+    jobs.filter(
+      j =>
+        j.source === "Applied"
+    )
+      .length;
 
-      <div class="v">
-        ${esc(item.value)}
-      </div>
-    </div>
-  `).join("");
+  const sourced =
+    jobs.filter(
+      j =>
+        j.source ===
+        "Recruiter Sourced"
+    )
+      .length;
+
+  const interviewing =
+    jobs.filter(
+      j =>
+        [
+          "Recruiter Screen",
+          "Interviewing",
+          "Final Round"
+        ]
+          .includes(
+            j.status
+          )
+    )
+      .length;
+
+  const heard =
+    jobs.filter(
+      j =>
+        j.heardBack === "Yes"
+    )
+      .length;
+
+  $("totalCount")
+    .textContent =
+      total;
+
+  $("appliedCount")
+    .textContent =
+      applied;
+
+  $("sourcedCount")
+    .textContent =
+      sourced;
+
+  $("interviewCount")
+    .textContent =
+      interviewing;
+
+  $("responseRate")
+    .textContent =
+      total
+        ? Math.round(
+            heard /
+            total *
+            100
+          ) + "%"
+        : "0%";
 }
 
-
-function openActivityInsight(kind) {
+function updateActivity() {
   const now =
     new Date();
 
@@ -611,563 +2252,1872 @@ function openActivityInsight(kind) {
     endOfWeek(now);
 
   const ms =
-    startOfMonth(now);
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1,
+      12
+    );
 
   const me =
-    endOfMonth(now);
-
-  let title = "";
-  let dateField = "";
-  let weekRows = [];
-  let monthRows = [];
-  let explanation = "";
-
-
-  if (kind === "applications") {
-    title =
-      "Applications";
-
-    dateField =
-      "dateApplied";
-
-    weekRows = jobs.filter(j =>
-      j.source === "Applied" &&
-      inRange(
-        j.dateApplied,
-        ws,
-        we
-      )
+    new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      12
     );
 
-    monthRows = jobs.filter(j =>
-      j.source === "Applied" &&
-      inRange(
-        j.dateApplied,
-        ms,
-        me
-      )
-    );
-
-    explanation =
-      "Applications you submitted directly.";
-  }
-
-
-  if (kind === "screens") {
-    title =
-      "Recruiter Screens";
-
-    dateField =
-      "recruiterScreenDate";
-
-    weekRows = jobs.filter(j =>
-      inRange(
-        j.recruiterScreenDate,
-        ws,
-        we
-      )
-    );
-
-    monthRows = jobs.filter(j =>
-      inRange(
-        j.recruiterScreenDate,
-        ms,
-        me
-      )
-    );
-
-    explanation =
-      "Recruiter screens logged in your tracker.";
-  }
-
-
-  if (kind === "interviews") {
-    title =
-      "Interviews";
-
-    dateField =
-      "interviewDate";
-
-    weekRows = jobs.filter(j =>
-      inRange(
-        j.interviewDate,
-        ws,
-        we
-      )
-    );
-
-    monthRows = jobs.filter(j =>
-      inRange(
-        j.interviewDate,
-        ms,
-        me
-      )
-    );
-
-    explanation =
-      "Interviews logged in your tracker.";
-  }
-
-
-  const active =
-    monthRows.filter(j =>
-      ![
-        "Rejected",
-        "Withdrawn",
-        "Ghosted"
-      ].includes(j.status)
-    ).length;
-
-
-  const sorted =
-    monthRows
-      .slice()
-      .sort(
-        (a, b) =>
-          String(
-            b[dateField] || ""
-          ).localeCompare(
-            String(
-              a[dateField] || ""
-            )
+  const count =
+    (
+      f,
+      s,
+      e,
+      p = () => true
+    ) =>
+      jobs.filter(
+        j =>
+          p(j) &&
+          inRange(
+            j[f],
+            s,
+            e
           )
-      );
+      )
+        .length;
 
+  const aw =
+    count(
+      "dateApplied",
+      ws,
+      we,
+      j =>
+        j.source ===
+        "Applied"
+    );
 
-  activityDialogTitle.textContent =
-    `${title} · ${
+  const am =
+    count(
+      "dateApplied",
+      ms,
+      me,
+      j =>
+        j.source ===
+        "Applied"
+    );
+
+  const sw =
+    count(
+      "recruiterScreenDate",
+      ws,
+      we
+    );
+
+  const sm =
+    count(
+      "recruiterScreenDate",
+      ms,
+      me
+    );
+
+  const iw =
+    count(
+      "interviewDate",
+      ws,
+      we
+    );
+
+  const im =
+    count(
+      "interviewDate",
+      ms,
+      me
+    );
+
+  $("appsWeek")
+    .textContent =
+      aw;
+
+  $("appsMonth")
+    .textContent =
+      am;
+
+  $("screensWeek")
+    .textContent =
+      sw;
+
+  $("screensMonth")
+    .textContent =
+      sm;
+
+  $("interviewsWeek")
+    .textContent =
+      iw;
+
+  $("interviewsMonth")
+    .textContent =
+      im;
+
+  $("appsPace")
+    .textContent =
+      `${am} application${
+        am === 1
+          ? ""
+          : "s"
+      } this month`;
+
+  $("screensPace")
+    .textContent =
+      `${sm} recruiter screen${
+        sm === 1
+          ? ""
+          : "s"
+      } this month`;
+
+  $("interviewsPace")
+    .textContent =
+      `${im} interview${
+        im === 1
+          ? ""
+          : "s"
+      } this month`;
+
+  $("activityPeriodLabel")
+    .textContent =
       now.toLocaleDateString(
         "en-US",
         {
-          month: "long",
-          year: "numeric"
+          month:
+            "long",
+
+          year:
+            "numeric"
         }
+      );
+}
+
+function openJob(
+  id = null
+) {
+  $("jobForm")
+    .reset();
+
+  $("editId")
+    .value =
+      "";
+
+  $("modalTitle")
+    .textContent =
+      id
+        ? "Edit Job"
+        : "Add Job";
+
+  if (id) {
+    const j =
+      jobs.find(
+        x =>
+          x.id === id
+      );
+
+    if (!j) {
+      return;
+    }
+
+    $("editId")
+      .value =
+        id;
+
+    fields.forEach(
+      f => {
+        if ($(f)) {
+          $(f).value =
+            j[f] ?? "";
+        }
+      }
+    );
+  } else {
+    $("source")
+      .value =
+        "Applied";
+
+    $("status")
+      .value =
+        "Applied";
+
+    $("heardBack")
+      .value =
+        "No";
+
+    $("dateApplied")
+      .value =
+        todayISO();
+  }
+
+  $("jobDialog")
+    .showModal();
+}
+
+async function deleteJob(
+  id
+) {
+  if (
+    !confirm(
+      "Delete this job?"
+    )
+  ) {
+    return;
+  }
+
+  const {
+    error
+  } =
+    await sb
+      .from("jobs")
+      .delete()
+      .eq(
+        "id",
+        id
       )
-    }`;
-
-
-  activityInsightSummary.innerHTML =
-    renderInsightBoxes([
-      {
-        label: "This week",
-        value: weekRows.length
-      },
-      {
-        label: "This month",
-        value: monthRows.length
-      },
-      {
-        label: "Still active",
-        value: active
-      }
-    ]);
-
-
-  activityInsightPattern.innerHTML = `
-    <strong>
-      What this includes
-    </strong>
-    <br>
-    ${esc(explanation)}
-  `;
-
-
-  activityInsightList.innerHTML =
-    sorted.length
-      ? sorted
-          .map(j =>
-            activityDetailRow(
-              j,
-              dateField
-            )
-          )
-          .join("")
-      : `
-        <div class="empty">
-          Nothing to show for this month yet.
-        </div>
-      `;
-
-
-  activityDialog.showModal();
-}
-
-
-/* =========================================================
-   CLICKABLE ACTIVITY CARDS
-   ========================================================= */
-
-const activityApplications =
-  byId("activityApplications");
-
-const activityScreens =
-  byId("activityScreens");
-
-const activityInterviews =
-  byId("activityInterviews");
-
-
-function wireActivityCard(
-  element,
-  type
-) {
-  element.addEventListener(
-    "click",
-    () => {
-      openActivityInsight(type);
-    }
-  );
-
-
-  element.addEventListener(
-    "keydown",
-    event => {
-      if (
-        event.key === "Enter" ||
-        event.key === " "
-      ) {
-        event.preventDefault();
-
-        openActivityInsight(type);
-      }
-    }
-  );
-}
-
-
-wireActivityCard(
-  activityApplications,
-  "applications"
-);
-
-wireActivityCard(
-  activityScreens,
-  "screens"
-);
-
-wireActivityCard(
-  activityInterviews,
-  "interviews"
-);
-
-
-/* =========================================================
-   CLICKABLE SUMMARY CARDS
-   ========================================================= */
-
-const statTotal =
-  byId("statTotal");
-
-const statApplied =
-  byId("statApplied");
-
-const statSourced =
-  byId("statSourced");
-
-const statInterviewing =
-  byId("statInterviewing");
-
-const statResponse =
-  byId("statResponse");
-
-
-function openSummaryInsight(
-  kind
-) {
-  let title = "";
-  let rows = [];
-  let explanation = "";
-  let thirdLabel = "Count";
-  let thirdValue = 0;
-
-
-  if (kind === "total") {
-    title =
-      "Total Opportunities";
-
-    rows =
-      jobs.slice();
-
-    explanation =
-      "Every opportunity currently saved in your tracker.";
-
-    thirdLabel =
-      "Total";
-
-    thirdValue =
-      rows.length;
-  }
-
-
-  if (kind === "applied") {
-    title =
-      "Applications Submitted";
-
-    rows =
-      jobs.filter(j =>
-        j.source === "Applied"
+      .eq(
+        "user_id",
+        currentUser.id
       );
 
-    explanation =
-      "Opportunities you submitted yourself.";
+  if (error) {
+    alert(
+      error.message
+    );
 
-    thirdLabel =
-      "Submitted";
-
-    thirdValue =
-      rows.length;
+    return;
   }
 
+  await loadJobs();
+}
 
-  if (kind === "sourced") {
-    title =
-      "Recruiter Sourced";
+function discoveryComp(j) {
+  const lo =
+    money(
+      j.salaryMin
+    );
 
-    rows =
-      jobs.filter(j =>
-        j.source ===
-        "Recruiter Sourced"
-      );
+  const hi =
+    money(
+      j.salaryMax
+    );
 
-    explanation =
-      "Opportunities that started from recruiter outreach.";
+  return (
+    lo &&
+    hi
+  )
+    ? `${lo}–${hi}`
+    : lo
+      ? `${lo}+`
+      : hi
+        ? `Up to ${hi}`
+        : "—";
+}
 
-    thirdLabel =
-      "Recruiter sourced";
+function renderDiscovery() {
+  const q =
+    $("discSearch")
+      .value
+      .toLowerCase();
 
-    thirdValue =
-      rows.length;
-  }
+  const d =
+    $("discDecisionFilter")
+      .value;
 
+  const min =
+    Number(
+      $("discMatchFilter")
+        .value ||
+      0
+    );
 
-  if (kind === "interviewing") {
-    title =
-      "Currently Interviewing";
+  const age =
+    Number(
+      $("discAgeFilter")
+        .value ||
+      0
+    );
 
-    rows =
-      jobs.filter(j =>
-        [
-          "Recruiter Screen",
-          "Interviewing",
-          "Final Round"
-        ].includes(
-          j.status
+  const now =
+    new Date();
+
+  const rows =
+    discoveredJobs.filter(
+      j => {
+        const blob =
+          [
+            j.company,
+            j.role,
+            j.location,
+            j.sourceSite,
+            j.matchSummary,
+            j.notes
+          ]
+            .join(" ")
+            .toLowerCase();
+
+        if (
+          q &&
+          !blob.includes(q)
+        ) {
+          return false;
+        }
+
+        if (
+          d &&
+          j.decision !== d
+        ) {
+          return false;
+        }
+
+        if (
+          min &&
+          Number(
+            j.matchScore || 0
+          ) < min
+        ) {
+          return false;
+        }
+
+        if (
+          age &&
+          j.postedDate
+        ) {
+          const pd =
+            parseDate(
+              j.postedDate
+            );
+
+          if (
+            pd &&
+            (
+              now - pd
+            ) /
+            86400000 >
+            age
+          ) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+    );
+
+  $("discoveryRows")
+    .innerHTML =
+      rows.map(
+        j => `
+          <tr>
+
+            <td>
+              <div class="company">
+                ${esc(
+                  j.company
+                )}
+              </div>
+
+              <div class="role">
+                ${esc(
+                  j.role
+                )}
+              </div>
+
+              <div class="muted">
+                ${esc(
+                  j.sourceSite
+                )}
+              </div>
+            </td>
+
+            <td>
+              ${
+                j.matchScore !== ""
+                  ? `
+                    <span
+                      class="match ${
+                        Number(
+                          j.matchScore
+                        ) >= 80
+                          ? "high"
+                          : Number(
+                              j.matchScore
+                            ) >= 60
+                            ? "mid"
+                            : "low"
+                      }"
+                    >
+                      ${esc(
+                        j.matchScore
+                      )}%
+                    </span>
+                  `
+                  : "—"
+              }
+            </td>
+
+            <td>
+              ${fmtDate(
+                j.postedDate
+              )}
+            </td>
+
+            <td>
+              ${esc(
+                [
+                  j.location,
+                  j.workArrangement
+                ]
+                  .filter(Boolean)
+                  .join(" • ") ||
+                "—"
+              )}
+            </td>
+
+            <td>
+              ${esc(
+                discoveryComp(j)
+              )}
+            </td>
+
+            <td>
+              <span class="pill">
+                ${esc(
+                  j.decision
+                )}
+              </span>
+            </td>
+
+            <td>
+              ${esc(
+                j.matchSummary ||
+                j.passReason ||
+                j.passNote ||
+                "—"
+              )}
+            </td>
+
+            <td>
+
+              <div class="row-actions">
+
+                ${
+                  j.jobUrl
+                    ? `
+                      <button
+                        class="primary"
+                        onclick="openApply('${j.id}')"
+                      >
+                        Open / Apply
+                      </button>
+                    `
+                    : ""
+                }
+
+                ${
+                  (
+                    j.decision !==
+                    "considering"
+                  ) &&
+                  (
+                    j.decision !==
+                    "applied"
+                  )
+                    ? `
+                      <button
+                        class="secondary"
+                        onclick="setConsidering('${j.id}')"
+                      >
+                        Considering
+                      </button>
+                    `
+                    : ""
+                }
+
+                ${
+                  (
+                    j.decision !==
+                    "passed"
+                  ) &&
+                  (
+                    j.decision !==
+                    "applied"
+                  )
+                    ? `
+                      <button
+                        class="danger"
+                        onclick="openPass('${j.id}')"
+                      >
+                        Pass
+                      </button>
+                    `
+                    : ""
+                }
+
+              </div>
+
+            </td>
+
+          </tr>
+        `
+      )
+      .join("");
+
+  $("discoveryEmpty")
+    .classList
+    .toggle(
+      "hidden",
+      !!rows.length
+    );
+
+  $("discNew")
+    .textContent =
+      discoveredJobs
+        .filter(
+          j =>
+            j.decision ===
+            "new"
         )
+        .length;
+
+  $("discConsidering")
+    .textContent =
+      discoveredJobs
+        .filter(
+          j =>
+            j.decision ===
+            "considering"
+        )
+        .length;
+
+  $("discApplied")
+    .textContent =
+      discoveredJobs
+        .filter(
+          j =>
+            j.decision ===
+            "applied"
+        )
+        .length;
+
+  $("discPassed")
+    .textContent =
+      discoveredJobs
+        .filter(
+          j =>
+            j.decision ===
+            "passed"
+        )
+        .length;
+
+  const n =
+    discoveredJobs
+      .filter(
+        j =>
+          j.decision ===
+          "new"
+      )
+      .length;
+
+  $("newDiscoveryBadge")
+    .textContent =
+      n
+        ? `(${n})`
+        : "";
+}
+
+async function setConsidering(
+  id
+) {
+  const {
+    error
+  } =
+    await sb
+      .from(
+        "discovered_jobs"
+      )
+      .update({
+        decision:
+          "considering"
+      })
+      .eq(
+        "id",
+        id
+      )
+      .eq(
+        "user_id",
+        currentUser.id
       );
 
-    explanation =
-      "Active opportunities currently in Recruiter Screen, Interviewing, or Final Round.";
+  if (error) {
+    alert(
+      error.message
+    );
 
-    thirdLabel =
-      "Active pipelines";
-
-    thirdValue =
-      rows.length;
+    return;
   }
 
+  await loadDiscovery();
+}
 
-  if (kind === "response") {
-    title =
-      "Response Rate";
+function prepPassReasons() {
+  selectedPassReason =
+    "";
 
-    rows =
-      jobs.filter(j =>
-        j.heardBack === "Yes"
+  $("passNote")
+    .value =
+      "";
+
+  $("reasonButtons")
+    .innerHTML =
+      PASS_REASONS
+        .map(
+          r => `
+            <button
+              type="button"
+              data-reason="${esc(r)}"
+            >
+              ${esc(r)}
+            </button>
+          `
+        )
+        .join("");
+
+  $("reasonButtons")
+    .querySelectorAll(
+      "button"
+    )
+    .forEach(
+      b =>
+        b.addEventListener(
+          "click",
+          () => {
+            selectedPassReason =
+              b.dataset.reason;
+
+            $("reasonButtons")
+              .querySelectorAll(
+                "button"
+              )
+              .forEach(
+                x =>
+                  x.classList
+                    .remove(
+                      "selected"
+                    )
+              );
+
+            b.classList
+              .add(
+                "selected"
+              );
+          }
+        )
+    );
+}
+
+function openApply(
+  id
+) {
+  activeDiscoveryJob =
+    discoveredJobs.find(
+      j =>
+        j.id === id
+    );
+
+  if (
+    !activeDiscoveryJob
+  ) {
+    return;
+  }
+
+  window.open(
+    activeDiscoveryJob.jobUrl,
+    "_blank",
+    "noopener"
+  );
+
+  $("applyConfirmJob")
+    .textContent =
+      `${activeDiscoveryJob.company} — ${activeDiscoveryJob.role}`;
+
+  $("passReasonArea")
+    .classList
+    .add("hidden");
+
+  prepPassReasons();
+
+  $("applyConfirmDialog")
+    .showModal();
+}
+
+function openPass(
+  id
+) {
+  activeDiscoveryJob =
+    discoveredJobs.find(
+      j =>
+        j.id === id
+    );
+
+  if (
+    !activeDiscoveryJob
+  ) {
+    return;
+  }
+
+  $("applyConfirmJob")
+    .textContent =
+      `${activeDiscoveryJob.company} — ${activeDiscoveryJob.role}`;
+
+  prepPassReasons();
+
+  $("passReasonArea")
+    .classList
+    .remove("hidden");
+
+  $("applyConfirmDialog")
+    .showModal();
+}
+
+async function confirmApplied() {
+  if (
+    !activeDiscoveryJob
+  ) {
+    return;
+  }
+
+  const dupe =
+    jobs.find(
+      j =>
+        (
+          j.jobUrl &&
+          activeDiscoveryJob.jobUrl &&
+          j.jobUrl ===
+          activeDiscoveryJob.jobUrl
+        ) ||
+        (
+          j.company
+            .toLowerCase() ===
+          activeDiscoveryJob.company
+            .toLowerCase() &&
+          j.role
+            .toLowerCase() ===
+          activeDiscoveryJob.role
+            .toLowerCase()
+        )
+    );
+
+  if (dupe) {
+    alert(
+      "This job already appears in your tracker."
+    );
+
+    return;
+  }
+
+  const row = {
+    user_id:
+      currentUser.id,
+
+    company:
+      activeDiscoveryJob.company,
+
+    role:
+      activeDiscoveryJob.role,
+
+    source:
+      "Applied",
+
+    status:
+      "Applied",
+
+    date_applied:
+      todayISO(),
+
+    heard_back:
+      "No",
+
+    salary_min:
+      activeDiscoveryJob.salaryMin ||
+      null,
+
+    salary_max:
+      activeDiscoveryJob.salaryMax ||
+      null,
+
+    location:
+      activeDiscoveryJob.location ||
+      null,
+
+    work_arrangement:
+      activeDiscoveryJob.workArrangement ||
+      null,
+
+    job_url:
+      activeDiscoveryJob.jobUrl ||
+      null,
+
+    notes:
+      activeDiscoveryJob.matchSummary ||
+      activeDiscoveryJob.notes ||
+      null
+  };
+
+  const {
+    data,
+    error
+  } =
+    await sb
+      .from("jobs")
+      .insert(row)
+      .select("id")
+      .single();
+
+  if (error) {
+    alert(
+      error.message
+    );
+
+    return;
+  }
+
+  await sb
+    .from(
+      "discovered_jobs"
+    )
+    .update({
+      decision:
+        "applied",
+
+      confirmed_applied_at:
+        new Date()
+          .toISOString(),
+
+      tracker_job_id:
+        data.id
+    })
+    .eq(
+      "id",
+      activeDiscoveryJob.id
+    )
+    .eq(
+      "user_id",
+      currentUser.id
+    );
+
+  $("applyConfirmDialog")
+    .close();
+
+  await Promise.all([
+    loadJobs(),
+    loadDiscovery()
+  ]);
+
+  switchView(
+    "tracker"
+  );
+}
+
+async function savePass() {
+  if (
+    !activeDiscoveryJob ||
+    !selectedPassReason
+  ) {
+    alert(
+      "Choose a reason first."
+    );
+
+    return;
+  }
+
+  const {
+    error
+  } =
+    await sb
+      .from(
+        "discovered_jobs"
+      )
+      .update({
+        decision:
+          "passed",
+
+        pass_reason:
+          selectedPassReason,
+
+        pass_note:
+          $("passNote")
+            .value
+            .trim() ||
+          null
+      })
+      .eq(
+        "id",
+        activeDiscoveryJob.id
+      )
+      .eq(
+        "user_id",
+        currentUser.id
       );
 
-    const heard =
-      rows.length;
+  if (error) {
+    alert(
+      error.message
+    );
 
-    const total =
-      jobs.length;
-
-    const rate =
-      total
-        ? Math.round(
-            heard /
-            total *
-            100
-          )
-        : 0;
-
-    explanation =
-      `${heard} of ${total} tracked opportunities are marked as having received a response.`;
-
-    thirdLabel =
-      "Response rate";
-
-    thirdValue =
-      `${rate}%`;
+    return;
   }
 
+  $("applyConfirmDialog")
+    .close();
+
+  await loadDiscovery();
+}
+
+function showInsight(
+  title,
+  rows,
+  note
+) {
+  const dlg =
+    $("activityDialog");
+
+  $("activityDialogTitle")
+    .textContent =
+      title;
 
   const active =
-    rows.filter(j =>
-      ![
-        "Rejected",
-        "Withdrawn",
-        "Ghosted"
-      ].includes(
-        j.status
+    rows.filter(
+      j =>
+        ![
+          "Rejected",
+          "Withdrawn",
+          "Ghosted"
+        ]
+          .includes(
+            j.status
+          )
+    )
+      .length;
+
+  $("activityInsightSummary")
+    .innerHTML = `
+      <div class="insight-box">
+        <div class="k">
+          Showing
+        </div>
+
+        <div class="v">
+          ${rows.length}
+        </div>
+      </div>
+
+      <div class="insight-box">
+        <div class="k">
+          Still active
+        </div>
+
+        <div class="v">
+          ${active}
+        </div>
+      </div>
+
+      <div class="insight-box">
+        <div class="k">
+          Rejected
+        </div>
+
+        <div class="v">
+          ${
+            rows.filter(
+              j =>
+                j.status ===
+                "Rejected"
+            )
+              .length
+          }
+        </div>
+      </div>
+    `;
+
+  $("activityInsightPattern")
+    .innerHTML =
+      `
+        <strong>
+          What this includes
+        </strong>
+        <br>
+        ${esc(note)}
+      `;
+
+  $("activityInsightList")
+    .innerHTML =
+      rows.length
+        ? rows
+            .map(
+              j => `
+                <div class="activity-detail-row">
+
+                  <div>
+                    <div class="title">
+                      ${esc(j.company)} · ${esc(j.role)}
+                    </div>
+
+                    <div class="sub">
+                      ${esc(
+                        [
+                          j.status,
+                          j.source,
+                          j.recruiter
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      )}
+                    </div>
+                  </div>
+
+                  <div class="date">
+                    ${fmtDate(
+                      j.interviewDate ||
+                      j.recruiterScreenDate ||
+                      j.dateHeardBack ||
+                      j.dateApplied
+                    )}
+                  </div>
+
+                </div>
+              `
+            )
+            .join("")
+        : `
+          <div class="empty">
+            Nothing to show.
+          </div>
+        `;
+
+  dlg.showModal();
+}
+
+function activityInsight(
+  kind
+) {
+  const now =
+    new Date();
+
+  const ms =
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1,
+      12
+    );
+
+  const me =
+    new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      12
+    );
+
+  if (
+    kind ===
+    "applications"
+  ) {
+    showInsight(
+      "Applications this month",
+
+      jobs.filter(
+        j =>
+          j.source ===
+          "Applied" &&
+          inRange(
+            j.dateApplied,
+            ms,
+            me
+          )
+      ),
+
+      "Applications you submitted directly."
+    );
+  }
+
+  if (
+    kind ===
+    "screens"
+  ) {
+    showInsight(
+      "Recruiter Screens this month",
+
+      jobs.filter(
+        j =>
+          inRange(
+            j.recruiterScreenDate,
+            ms,
+            me
+          )
+      ),
+
+      "Recruiter screens logged this month."
+    );
+  }
+
+  if (
+    kind ===
+    "interviews"
+  ) {
+    showInsight(
+      "Interviews this month",
+
+      jobs.filter(
+        j =>
+          inRange(
+            j.interviewDate,
+            ms,
+            me
+          )
+      ),
+
+      "Interviews logged this month."
+    );
+  }
+}
+
+function summaryInsight(
+  kind
+) {
+  if (
+    kind ===
+    "total"
+  ) {
+    showInsight(
+      "Total Opportunities",
+      jobs.slice(),
+      "Every opportunity currently saved in your tracker."
+    );
+  }
+
+  if (
+    kind ===
+    "applied"
+  ) {
+    showInsight(
+      "Applications Submitted",
+
+      jobs.filter(
+        j =>
+          j.source ===
+          "Applied"
+      ),
+
+      "Opportunities you submitted yourself."
+    );
+  }
+
+  if (
+    kind ===
+    "sourced"
+  ) {
+    showInsight(
+      "Recruiter Sourced",
+
+      jobs.filter(
+        j =>
+          j.source ===
+          "Recruiter Sourced"
+      ),
+
+      "Opportunities that started from recruiter outreach."
+    );
+  }
+
+  if (
+    kind ===
+    "interviewing"
+  ) {
+    showInsight(
+      "Currently Interviewing",
+
+      jobs.filter(
+        j =>
+          [
+            "Recruiter Screen",
+            "Interviewing",
+            "Final Round"
+          ]
+            .includes(
+              j.status
+            )
+      ),
+
+      "Active pipelines in recruiter screen, interviewing, or final round."
+    );
+  }
+
+  if (
+    kind ===
+    "response"
+  ) {
+    showInsight(
+      "Response Rate",
+
+      jobs.filter(
+        j =>
+          j.heardBack ===
+          "Yes"
+      ),
+
+      "Opportunities marked as having received a response."
+    );
+  }
+}
+
+function wireKeyboard(
+  el,
+  fn
+) {
+  el.addEventListener(
+    "click",
+    fn
+  );
+
+  el.addEventListener(
+    "keydown",
+    e => {
+      if (
+        e.key ===
+        "Enter" ||
+        e.key ===
+        " "
+      ) {
+        e.preventDefault();
+        fn();
+      }
+    }
+  );
+}
+
+function exportCSV() {
+  const headers = [
+    "Company",
+    "Role",
+    "Source",
+    "Status",
+    "Date Applied",
+    "Recruiter Screen Date",
+    "Interview Date",
+    "Heard Back",
+    "Date Heard Back",
+    "Last Contact",
+    "Salary Min",
+    "Salary Max",
+    "Additional Compensation",
+    "Recruiter",
+    "Recruiter Contact",
+    "Location",
+    "Work Arrangement",
+    "Job URL",
+    "Next Step",
+    "Notes"
+  ];
+
+  const keys =
+    fields;
+
+  const q =
+    v =>
+      `"${String(
+        v ?? ""
       )
-    ).length;
+        .replace(
+          /"/g,
+          '""'
+        )}"`;
 
+  const csv =
+    [
+      headers
+        .map(q)
+        .join(","),
 
-  const rejected =
-    rows.filter(j =>
-      j.status ===
-      "Rejected"
-    ).length;
+      ...jobs.map(
+        j =>
+          keys
+            .map(
+              k =>
+                q(
+                  j[k]
+                )
+            )
+            .join(",")
+      )
+    ]
+      .join("\n");
 
+  const blob =
+    new Blob(
+      [csv],
+      {
+        type:
+          "text/csv"
+      }
+    );
 
-  rows.sort(
-    (a, b) => {
-      const aDate =
-        a.interviewDate ||
-        a.recruiterScreenDate ||
-        a.dateHeardBack ||
-        a.dateApplied ||
-        "";
+  const url =
+    URL.createObjectURL(
+      blob
+    );
 
-      const bDate =
-        b.interviewDate ||
-        b.recruiterScreenDate ||
-        b.dateHeardBack ||
-        b.dateApplied ||
-        "";
+  const a =
+    document.createElement(
+      "a"
+    );
 
-      return String(
-        bDate
-      ).localeCompare(
-        String(
-          aDate
-        )
+  a.href =
+    url;
+
+  a.download =
+    "job-search-tracker.csv";
+
+  a.click();
+
+  URL.revokeObjectURL(
+    url
+  );
+}
+
+function importCSV(
+  file
+) {
+  if (!file) {
+    return;
+  }
+
+  Papa.parse(
+    file,
+    {
+      header:
+        true,
+
+      skipEmptyLines:
+        true,
+
+      complete:
+        async r => {
+          const hm = {
+            "Company":
+              "company",
+
+            "Role":
+              "role",
+
+            "Source":
+              "source",
+
+            "Status":
+              "status",
+
+            "Date Applied":
+              "dateApplied",
+
+            "Recruiter Screen Date":
+              "recruiterScreenDate",
+
+            "Interview Date":
+              "interviewDate",
+
+            "Heard Back":
+              "heardBack",
+
+            "Date Heard Back":
+              "dateHeardBack",
+
+            "Last Contact":
+              "lastContact",
+
+            "Salary Min":
+              "salaryMin",
+
+            "Salary Max":
+              "salaryMax",
+
+            "Additional Compensation":
+              "additionalComp",
+
+            "Recruiter":
+              "recruiter",
+
+            "Recruiter Contact":
+              "recruiterContact",
+
+            "Location":
+              "location",
+
+            "Work Arrangement":
+              "workArrangement",
+
+            "Job URL":
+              "jobUrl",
+
+            "Next Step":
+              "nextStep",
+
+            "Notes":
+              "notes"
+          };
+
+          const rows = [];
+
+          for (
+            const row
+            of r.data || []
+          ) {
+            if (
+              !row.Company ||
+              !row.Role
+            ) {
+              continue;
+            }
+
+            const ui = {};
+
+            for (
+              const [
+                h,
+                f
+              ]
+              of Object.entries(
+                hm
+              )
+            ) {
+              ui[f] =
+                String(
+                  row[h] ??
+                  ""
+                )
+                  .trim();
+            }
+
+            rows.push({
+              ...toDb(ui),
+
+              user_id:
+                currentUser.id
+            });
+          }
+
+          if (
+            rows.length
+          ) {
+            const {
+              error
+            } =
+              await sb
+                .from("jobs")
+                .insert(
+                  rows
+                );
+
+            if (error) {
+              alert(
+                error.message
+              );
+
+              return;
+            }
+
+            await loadJobs();
+          }
+        }
+    }
+  );
+}
+
+$("signInBtn")
+  .addEventListener(
+    "click",
+    async () => {
+      $("authMsg")
+        .textContent =
+          "Signing in...";
+
+      const {
+        data,
+        error
+      } =
+        await sb.auth
+          .signInWithPassword({
+            email:
+              $("authEmail")
+                .value
+                .trim(),
+
+            password:
+              $("authPassword")
+                .value
+          });
+
+      if (error) {
+        $("authMsg")
+          .textContent =
+            error.message;
+
+        return;
+      }
+
+      $("authMsg")
+        .textContent =
+          "";
+
+      await enterApp(
+        data.user
       );
     }
   );
 
-
-  activityDialogTitle.textContent =
-    title;
-
-
-  activityInsightSummary.innerHTML =
-    renderInsightBoxes([
-      {
-        label: "Showing",
-        value: rows.length
-      },
-      {
-        label: "Still active",
-        value: active
-      },
-      {
-        label: thirdLabel,
-        value: thirdValue
-      }
-    ]);
-
-
-  activityInsightPattern.innerHTML = `
-    <strong>
-      What this includes
-    </strong>
-    <br>
-
-    ${esc(explanation)}
-
-    ${
-      rows.length
-        ? ` Rejected in this view: ${rejected}.`
-        : ""
-    }
-  `;
-
-
-  activityInsightList.innerHTML =
-    rows.length
-      ? rows
-          .map(j =>
-            activityDetailRow(j)
-          )
-          .join("")
-      : `
-        <div class="empty">
-          Nothing to show here yet.
-        </div>
-      `;
-
-
-  activityDialog.showModal();
-}
-
-
-function wireSummaryCard(
-  element,
-  type
-) {
-  element.addEventListener(
+$("signUpBtn")
+  .addEventListener(
     "click",
-    () => {
-      openSummaryInsight(type);
+    async () => {
+      const {
+        error
+      } =
+        await sb.auth
+          .signUp({
+            email:
+              $("authEmail")
+                .value
+                .trim(),
+
+            password:
+              $("authPassword")
+                .value
+          });
+
+      $("authMsg")
+        .textContent =
+          error
+            ? error.message
+            : "Account created. Check your email if confirmation is required.";
     }
   );
 
+$("signOutBtn")
+  .addEventListener(
+    "click",
+    async () => {
+      await sb.auth
+        .signOut();
 
-  element.addEventListener(
-    "keydown",
-    event => {
+      location.reload();
+    }
+  );
+
+$("tabTracker")
+  .addEventListener(
+    "click",
+    () =>
+      switchView(
+        "tracker"
+      )
+  );
+
+$("tabDiscovery")
+  .addEventListener(
+    "click",
+    () =>
+      switchView(
+        "discovery"
+      )
+  );
+
+$("addJobBtn")
+  .addEventListener(
+    "click",
+    () =>
+      openJob()
+  );
+
+$("closeJobDialog")
+  .addEventListener(
+    "click",
+    () =>
+      $("jobDialog")
+        .close()
+  );
+
+$("cancelJob")
+  .addEventListener(
+    "click",
+    () =>
+      $("jobDialog")
+        .close()
+  );
+
+$("jobForm")
+  .addEventListener(
+    "submit",
+    async e => {
+      e.preventDefault();
+
+      const ui = {};
+
+      fields.forEach(
+        f => {
+          ui[f] =
+            $(f)?.value
+              .trim() ??
+            "";
+        }
+      );
+
       if (
-        event.key === "Enter" ||
-        event.key === " "
+        !ui.company ||
+        !ui.role
       ) {
-        event.preventDefault();
-
-        openSummaryInsight(type);
+        return;
       }
+
+      const payload = {
+        ...toDb(ui),
+
+        user_id:
+          currentUser.id
+      };
+
+      const id =
+        $("editId")
+          .value;
+
+      const {
+        error
+      } =
+        id
+          ? await sb
+              .from("jobs")
+              .update(
+                payload
+              )
+              .eq(
+                "id",
+                id
+              )
+              .eq(
+                "user_id",
+                currentUser.id
+              )
+
+          : await sb
+              .from("jobs")
+              .insert(
+                payload
+              );
+
+      if (error) {
+        alert(
+          error.message
+        );
+
+        return;
+      }
+
+      $("jobDialog")
+        .close();
+
+      await loadJobs();
     }
   );
-}
 
+[
+  "search",
+  "statusFilter",
+  "sourceFilter",
+  "responseFilter"
+]
+  .forEach(
+    id =>
+      $(id)
+        .addEventListener(
+          id === "search"
+            ? "input"
+            : "change",
 
-wireSummaryCard(
-  statTotal,
-  "total"
+          renderTracker
+        )
+  );
+
+[
+  "discSearch",
+  "discDecisionFilter",
+  "discMatchFilter",
+  "discAgeFilter"
+]
+  .forEach(
+    id =>
+      $(id)
+        .addEventListener(
+          id ===
+          "discSearch"
+            ? "input"
+            : "change",
+
+          renderDiscovery
+        )
+  );
+
+$("importBtn")
+  .addEventListener(
+    "click",
+    () =>
+      $("csvFileInput")
+        .click()
+  );
+
+$("csvFileInput")
+  .addEventListener(
+    "change",
+    e =>
+      importCSV(
+        e.target.files?.[0]
+      )
+  );
+
+$("exportBtn")
+  .addEventListener(
+    "click",
+    exportCSV
+  );
+
+wireKeyboard(
+  $("activityApplications"),
+  () =>
+    activityInsight(
+      "applications"
+    )
 );
 
-wireSummaryCard(
-  statApplied,
-  "applied"
+wireKeyboard(
+  $("activityScreens"),
+  () =>
+    activityInsight(
+      "screens"
+    )
 );
 
-wireSummaryCard(
-  statSourced,
-  "sourced"
+wireKeyboard(
+  $("activityInterviews"),
+  () =>
+    activityInsight(
+      "interviews"
+    )
 );
 
-wireSummaryCard(
-  statInterviewing,
-  "interviewing"
+wireKeyboard(
+  $("statTotal"),
+  () =>
+    summaryInsight(
+      "total"
+    )
 );
 
-wireSummaryCard(
-  statResponse,
-  "response"
+wireKeyboard(
+  $("statApplied"),
+  () =>
+    summaryInsight(
+      "applied"
+    )
 );
 
+wireKeyboard(
+  $("statSourced"),
+  () =>
+    summaryInsight(
+      "sourced"
+    )
+);
 
-/* =========================================================
-   INITIAL LOAD
-   ========================================================= */
+wireKeyboard(
+  $("statInterviewing"),
+  () =>
+    summaryInsight(
+      "interviewing"
+    )
+);
 
-(async function init() {
+wireKeyboard(
+  $("statResponse"),
+  () =>
+    summaryInsight(
+      "response"
+    )
+);
+
+$("activityDialogClose")
+  .addEventListener(
+    "click",
+    () =>
+      $("activityDialog")
+        .close()
+  );
+
+$("closeApplyDialog")
+  .addEventListener(
+    "click",
+    () =>
+      $("applyConfirmDialog")
+        .close()
+  );
+
+$("yesAppliedBtn")
+  .addEventListener(
+    "click",
+    confirmApplied
+  );
+
+$("notYetBtn")
+  .addEventListener(
+    "click",
+    async () => {
+      if (
+        activeDiscoveryJob
+      ) {
+        await setConsidering(
+          activeDiscoveryJob.id
+        );
+      }
+
+      $("applyConfirmDialog")
+        .close();
+    }
+  );
+
+$("decidedNoBtn")
+  .addEventListener(
+    "click",
+    () =>
+      $("passReasonArea")
+        .classList
+        .remove(
+          "hidden"
+        )
+  );
+
+$("savePassBtn")
+  .addEventListener(
+    "click",
+    savePass
+  );
+
+(async () => {
   const {
     data: {
       session
     }
   } =
-    await sb.auth.getSession();
-
+    await sb.auth
+      .getSession();
 
   if (
     session?.user
@@ -1176,31 +4126,8 @@ wireSummaryCard(
       session.user
     );
   }
-
-
-  sb.auth.onAuthStateChange(
-    async (
-      _event,
-      session
-    ) => {
-      if (
-        session?.user &&
-        !currentUser
-      ) {
-        await enterApp(
-          session.user
-        );
-      }
-    }
-  );
-
-
-  switchView(
-    "tracker"
-  );
 })();
-
 </script>
+
 </body>
 </html>
-  
