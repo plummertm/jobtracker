@@ -1,0 +1,28 @@
+{
+  "role_include": [
+    "solutions engineer", "solution engineer",
+    "solutions architect", "solution architect",
+    "sales engineer", "sales systems engineer",
+    "systems engineer", "system engineer",
+    "technical solutions engineer", "technical solution engineer",
+    "presales", "pre-sales",
+    "forward deployed engineer",
+    "customer engineer"
+  ],
+  "role_exclude": [
+    "software engineer", "frontend", "backend", "mobile engineer",
+    "qa engineer", "quality engineer", "data engineer", "devops engineer",
+    "site reliability"
+  ],
+  "allow_any_us_location": true,
+  "location_include": [
+    "remote", "united states", "washington dc", "washington, dc",
+    "district of columbia", "maryland", "virginia", "mclean", "herndon",
+    "reston", "arlington", "alexandria", "tysons", "fairfax"
+  ],
+  "sources": [
+    {"company":"EXAMPLE — Greenhouse","type":"greenhouse","token":"example","enabled":false},
+    {"company":"EXAMPLE — Lever","type":"lever","site":"leverdemo","enabled":false},
+    {"company":"EXAMPLE — Ashby","type":"ashby","board":"Ashby","enabled":false}
+  ]
+}
