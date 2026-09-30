@@ -450,4 +450,757 @@ label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
     <div id="activityInsightList" class="activity-detail-list"></div>
   </div>
 </dialog>
+  function switchView(which) {
+  const showTracker =
+    which === "tracker";
+
+  trackerView.classList.toggle(
+    "hidden",
+    !showTracker
+  );
+
+  discoveryView.classList.toggle(
+    "hidden",
+    showTracker
+  );
+
+  tabTracker.classList.toggle(
+    "active",
+    showTracker
+  );
+
+  tabDiscovery.classList.toggle(
+    "active",
+    !showTracker
+  );
+
+  tabTracker.setAttribute(
+    "aria-selected",
+    showTracker
+      ? "true"
+      : "false"
+  );
+
+  tabDiscovery.setAttribute(
+    "aria-selected",
+    showTracker
+      ? "false"
+      : "true"
+  );
+}
+
+tabTracker.addEventListener(
+  "click",
+  event => {
+    event.preventDefault();
+    switchView("tracker");
+  }
+);
+
+tabDiscovery.addEventListener(
+  "click",
+  event => {
+    event.preventDefault();
+    switchView("discovery");
+  }
+);
+
+
+/* =========================================================
+   ACTIVITY DETAIL DIALOG
+   ========================================================= */
+
+const activityDialog =
+  byId("activityDialog");
+
+const activityDialogTitle =
+  byId("activityDialogTitle");
+
+const activityDialogClose =
+  byId("activityDialogClose");
+
+const activityInsightSummary =
+  byId("activityInsightSummary");
+
+const activityInsightPattern =
+  byId("activityInsightPattern");
+
+const activityInsightList =
+  byId("activityInsightList");
+
+
+activityDialogClose.addEventListener(
+  "click",
+  () => {
+    activityDialog.close();
+  }
+);
+
+
+function activityDetailRow(
+  job,
+  dateField
+) {
+  const date =
+    dateField
+      ? job[dateField]
+      : (
+          job.interviewDate ||
+          job.recruiterScreenDate ||
+          job.dateHeardBack ||
+          job.dateApplied ||
+          ""
+        );
+
+  const meta = [
+    job.status,
+    job.source,
+    job.recruiter
+  ]
+    .filter(Boolean)
+    .map(esc)
+    .join(" • ");
+
+  return `
+    <div class="activity-detail-row">
+
+      <div>
+        <div class="title">
+          ${esc(job.company)} — ${esc(job.role)}
+        </div>
+
+        <div class="sub">
+          ${meta || "No additional details"}
+        </div>
+      </div>
+
+      <div class="date">
+        ${fmtDate(date)}
+      </div>
+
+    </div>
+  `;
+}
+
+
+function renderInsightBoxes(
+  items
+) {
+  return items.map(item => `
+    <div class="insight-box">
+      <div class="k">
+        ${esc(item.label)}
+      </div>
+
+      <div class="v">
+        ${esc(item.value)}
+      </div>
+    </div>
+  `).join("");
+}
+
+
+function openActivityInsight(kind) {
+  const now =
+    new Date();
+
+  const ws =
+    startOfWeek(now);
+
+  const we =
+    endOfWeek(now);
+
+  const ms =
+    startOfMonth(now);
+
+  const me =
+    endOfMonth(now);
+
+  let title = "";
+  let dateField = "";
+  let weekRows = [];
+  let monthRows = [];
+  let explanation = "";
+
+
+  if (kind === "applications") {
+    title =
+      "Applications";
+
+    dateField =
+      "dateApplied";
+
+    weekRows = jobs.filter(j =>
+      j.source === "Applied" &&
+      inRange(
+        j.dateApplied,
+        ws,
+        we
+      )
+    );
+
+    monthRows = jobs.filter(j =>
+      j.source === "Applied" &&
+      inRange(
+        j.dateApplied,
+        ms,
+        me
+      )
+    );
+
+    explanation =
+      "Applications you submitted directly.";
+  }
+
+
+  if (kind === "screens") {
+    title =
+      "Recruiter Screens";
+
+    dateField =
+      "recruiterScreenDate";
+
+    weekRows = jobs.filter(j =>
+      inRange(
+        j.recruiterScreenDate,
+        ws,
+        we
+      )
+    );
+
+    monthRows = jobs.filter(j =>
+      inRange(
+        j.recruiterScreenDate,
+        ms,
+        me
+      )
+    );
+
+    explanation =
+      "Recruiter screens logged in your tracker.";
+  }
+
+
+  if (kind === "interviews") {
+    title =
+      "Interviews";
+
+    dateField =
+      "interviewDate";
+
+    weekRows = jobs.filter(j =>
+      inRange(
+        j.interviewDate,
+        ws,
+        we
+      )
+    );
+
+    monthRows = jobs.filter(j =>
+      inRange(
+        j.interviewDate,
+        ms,
+        me
+      )
+    );
+
+    explanation =
+      "Interviews logged in your tracker.";
+  }
+
+
+  const active =
+    monthRows.filter(j =>
+      ![
+        "Rejected",
+        "Withdrawn",
+        "Ghosted"
+      ].includes(j.status)
+    ).length;
+
+
+  const sorted =
+    monthRows
+      .slice()
+      .sort(
+        (a, b) =>
+          String(
+            b[dateField] || ""
+          ).localeCompare(
+            String(
+              a[dateField] || ""
+            )
+          )
+      );
+
+
+  activityDialogTitle.textContent =
+    `${title} · ${
+      now.toLocaleDateString(
+        "en-US",
+        {
+          month: "long",
+          year: "numeric"
+        }
+      )
+    }`;
+
+
+  activityInsightSummary.innerHTML =
+    renderInsightBoxes([
+      {
+        label: "This week",
+        value: weekRows.length
+      },
+      {
+        label: "This month",
+        value: monthRows.length
+      },
+      {
+        label: "Still active",
+        value: active
+      }
+    ]);
+
+
+  activityInsightPattern.innerHTML = `
+    <strong>
+      What this includes
+    </strong>
+    <br>
+    ${esc(explanation)}
+  `;
+
+
+  activityInsightList.innerHTML =
+    sorted.length
+      ? sorted
+          .map(j =>
+            activityDetailRow(
+              j,
+              dateField
+            )
+          )
+          .join("")
+      : `
+        <div class="empty">
+          Nothing to show for this month yet.
+        </div>
+      `;
+
+
+  activityDialog.showModal();
+}
+
+
+/* =========================================================
+   CLICKABLE ACTIVITY CARDS
+   ========================================================= */
+
+const activityApplications =
+  byId("activityApplications");
+
+const activityScreens =
+  byId("activityScreens");
+
+const activityInterviews =
+  byId("activityInterviews");
+
+
+function wireActivityCard(
+  element,
+  type
+) {
+  element.addEventListener(
+    "click",
+    () => {
+      openActivityInsight(type);
+    }
+  );
+
+
+  element.addEventListener(
+    "keydown",
+    event => {
+      if (
+        event.key === "Enter" ||
+        event.key === " "
+      ) {
+        event.preventDefault();
+
+        openActivityInsight(type);
+      }
+    }
+  );
+}
+
+
+wireActivityCard(
+  activityApplications,
+  "applications"
+);
+
+wireActivityCard(
+  activityScreens,
+  "screens"
+);
+
+wireActivityCard(
+  activityInterviews,
+  "interviews"
+);
+
+
+/* =========================================================
+   CLICKABLE SUMMARY CARDS
+   ========================================================= */
+
+const statTotal =
+  byId("statTotal");
+
+const statApplied =
+  byId("statApplied");
+
+const statSourced =
+  byId("statSourced");
+
+const statInterviewing =
+  byId("statInterviewing");
+
+const statResponse =
+  byId("statResponse");
+
+
+function openSummaryInsight(
+  kind
+) {
+  let title = "";
+  let rows = [];
+  let explanation = "";
+  let thirdLabel = "Count";
+  let thirdValue = 0;
+
+
+  if (kind === "total") {
+    title =
+      "Total Opportunities";
+
+    rows =
+      jobs.slice();
+
+    explanation =
+      "Every opportunity currently saved in your tracker.";
+
+    thirdLabel =
+      "Total";
+
+    thirdValue =
+      rows.length;
+  }
+
+
+  if (kind === "applied") {
+    title =
+      "Applications Submitted";
+
+    rows =
+      jobs.filter(j =>
+        j.source === "Applied"
+      );
+
+    explanation =
+      "Opportunities you submitted yourself.";
+
+    thirdLabel =
+      "Submitted";
+
+    thirdValue =
+      rows.length;
+  }
+
+
+  if (kind === "sourced") {
+    title =
+      "Recruiter Sourced";
+
+    rows =
+      jobs.filter(j =>
+        j.source ===
+        "Recruiter Sourced"
+      );
+
+    explanation =
+      "Opportunities that started from recruiter outreach.";
+
+    thirdLabel =
+      "Recruiter sourced";
+
+    thirdValue =
+      rows.length;
+  }
+
+
+  if (kind === "interviewing") {
+    title =
+      "Currently Interviewing";
+
+    rows =
+      jobs.filter(j =>
+        [
+          "Recruiter Screen",
+          "Interviewing",
+          "Final Round"
+        ].includes(
+          j.status
+        )
+      );
+
+    explanation =
+      "Active opportunities currently in Recruiter Screen, Interviewing, or Final Round.";
+
+    thirdLabel =
+      "Active pipelines";
+
+    thirdValue =
+      rows.length;
+  }
+
+
+  if (kind === "response") {
+    title =
+      "Response Rate";
+
+    rows =
+      jobs.filter(j =>
+        j.heardBack === "Yes"
+      );
+
+    const heard =
+      rows.length;
+
+    const total =
+      jobs.length;
+
+    const rate =
+      total
+        ? Math.round(
+            heard /
+            total *
+            100
+          )
+        : 0;
+
+    explanation =
+      `${heard} of ${total} tracked opportunities are marked as having received a response.`;
+
+    thirdLabel =
+      "Response rate";
+
+    thirdValue =
+      `${rate}%`;
+  }
+
+
+  const active =
+    rows.filter(j =>
+      ![
+        "Rejected",
+        "Withdrawn",
+        "Ghosted"
+      ].includes(
+        j.status
+      )
+    ).length;
+
+
+  const rejected =
+    rows.filter(j =>
+      j.status ===
+      "Rejected"
+    ).length;
+
+
+  rows.sort(
+    (a, b) => {
+      const aDate =
+        a.interviewDate ||
+        a.recruiterScreenDate ||
+        a.dateHeardBack ||
+        a.dateApplied ||
+        "";
+
+      const bDate =
+        b.interviewDate ||
+        b.recruiterScreenDate ||
+        b.dateHeardBack ||
+        b.dateApplied ||
+        "";
+
+      return String(
+        bDate
+      ).localeCompare(
+        String(
+          aDate
+        )
+      );
+    }
+  );
+
+
+  activityDialogTitle.textContent =
+    title;
+
+
+  activityInsightSummary.innerHTML =
+    renderInsightBoxes([
+      {
+        label: "Showing",
+        value: rows.length
+      },
+      {
+        label: "Still active",
+        value: active
+      },
+      {
+        label: thirdLabel,
+        value: thirdValue
+      }
+    ]);
+
+
+  activityInsightPattern.innerHTML = `
+    <strong>
+      What this includes
+    </strong>
+    <br>
+
+    ${esc(explanation)}
+
+    ${
+      rows.length
+        ? ` Rejected in this view: ${rejected}.`
+        : ""
+    }
+  `;
+
+
+  activityInsightList.innerHTML =
+    rows.length
+      ? rows
+          .map(j =>
+            activityDetailRow(j)
+          )
+          .join("")
+      : `
+        <div class="empty">
+          Nothing to show here yet.
+        </div>
+      `;
+
+
+  activityDialog.showModal();
+}
+
+
+function wireSummaryCard(
+  element,
+  type
+) {
+  element.addEventListener(
+    "click",
+    () => {
+      openSummaryInsight(type);
+    }
+  );
+
+
+  element.addEventListener(
+    "keydown",
+    event => {
+      if (
+        event.key === "Enter" ||
+        event.key === " "
+      ) {
+        event.preventDefault();
+
+        openSummaryInsight(type);
+      }
+    }
+  );
+}
+
+
+wireSummaryCard(
+  statTotal,
+  "total"
+);
+
+wireSummaryCard(
+  statApplied,
+  "applied"
+);
+
+wireSummaryCard(
+  statSourced,
+  "sourced"
+);
+
+wireSummaryCard(
+  statInterviewing,
+  "interviewing"
+);
+
+wireSummaryCard(
+  statResponse,
+  "response"
+);
+
+
+/* =========================================================
+   INITIAL LOAD
+   ========================================================= */
+
+(async function init() {
+  const {
+    data: {
+      session
+    }
+  } =
+    await sb.auth.getSession();
+
+
+  if (
+    session?.user
+  ) {
+    await enterApp(
+      session.user
+    );
+  }
+
+
+  sb.auth.onAuthStateChange(
+    async (
+      _event,
+      session
+    ) => {
+      if (
+        session?.user &&
+        !currentUser
+      ) {
+        await enterApp(
+          session.user
+        );
+      }
+    }
+  );
+
+
+  switchView(
+    "tracker"
+  );
+})();
+
+</script>
+</body>
+</html>
   
