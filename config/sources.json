@@ -30,6 +30,5 @@
     "DevOps Engineer",
     "Site Reliability Engineer"
   ],
-  "us_only": true,
-  "results_per_query": 20
+  "us_only": true
 }
