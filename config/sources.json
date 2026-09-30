@@ -30,5 +30,12 @@
     "DevOps Engineer",
     "Site Reliability Engineer"
   ],
-  "us_only": true
+  "exclude_companies": [
+    "Datadog",
+    "Amazon Web Services",
+    "AWS",
+    "Amazon"
+  ],
+  "us_only": true,
+  "max_post_age_days": 30
 }
