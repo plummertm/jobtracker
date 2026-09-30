@@ -1,22 +1,35 @@
-"titles": [
-  "Solutions Engineer",
-  "Senior Solutions Engineer",
-  "Principal Solutions Engineer",
-  "Sales Engineer",
-  "Senior Sales Engineer",
-  "Sales Systems Engineer",
-  "Solutions Architect",
-  "Senior Solutions Architect",
-  "AI Solutions Engineer",
-  "AI Solutions Architect",
-  "Technical Solutions Engineer",
-  "Customer Engineer",
-  "Forward Deployed Engineer",
-  "Presales Engineer",
-  "Pre-Sales Engineer",
-  "Security Solutions Engineer",
-  "Cloud Solutions Architect",
-  "Public Sector Solutions Engineer",
-  "Federal Solutions Engineer",
-  "Systems Engineer"
-]
+{
+  "titles": [
+    "Solutions Engineer",
+    "Senior Solutions Engineer",
+    "Principal Solutions Engineer",
+    "Sales Engineer",
+    "Senior Sales Engineer",
+    "Solutions Architect",
+    "Senior Solutions Architect",
+    "AI Solutions Engineer",
+    "AI Solutions Architect",
+    "Technical Solutions Engineer",
+    "Customer Solutions Engineer",
+    "Customer Engineer",
+    "Forward Deployed Engineer",
+    "Presales Engineer",
+    "Pre-Sales Engineer",
+    "Security Solutions Engineer",
+    "Cloud Solutions Architect",
+    "Public Sector Solutions Engineer",
+    "Federal Solutions Engineer"
+  ],
+  "exclude_titles": [
+    "Software Engineer",
+    "Frontend Engineer",
+    "Backend Engineer",
+    "Mobile Engineer",
+    "QA Engineer",
+    "Data Engineer",
+    "DevOps Engineer",
+    "Site Reliability Engineer"
+  ],
+  "us_only": true,
+  "results_per_query": 20
+}
