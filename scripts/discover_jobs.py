@@ -107,6 +107,110 @@ CORPORATE_SUFFIXES = {
 }
 
 
+FOREIGN_LOCATION_TERMS = [
+    "canada",
+    "toronto",
+    "vancouver",
+    "montreal",
+    "ottawa",
+    "australia",
+    "sydney",
+    "melbourne",
+    "brisbane",
+    "costa rica",
+    "san jose costa rica",
+    "united kingdom",
+    "uk",
+    "london",
+    "england",
+    "scotland",
+    "ireland",
+    "dublin",
+    "europe",
+    "emea",
+    "germany",
+    "france",
+    "spain",
+    "italy",
+    "netherlands",
+    "poland",
+    "romania",
+    "india",
+    "singapore",
+    "japan",
+    "brazil",
+    "mexico",
+]
+
+
+EAST_COAST_TERMS = [
+    "east coast",
+    "eastern us",
+    "eastern united states",
+    "eastern time",
+    "est",
+    "edt",
+    "northeast",
+    "north east",
+    "mid atlantic",
+    "mid-atlantic",
+    "southeast",
+    "south east",
+    "washington dc",
+    "district of columbia",
+    "dc metro",
+    "dmv",
+    "maryland",
+    "virginia",
+    "arlington",
+    "alexandria",
+    "mclean",
+    "tysons",
+    "reston",
+    "herndon",
+    "fairfax",
+    "bethesda",
+    "rockville",
+    "baltimore",
+    "new york",
+    "new jersey",
+    "pennsylvania",
+    "philadelphia",
+    "delaware",
+    "connecticut",
+    "massachusetts",
+    "boston",
+    "rhode island",
+    "maine",
+    "new hampshire",
+    "vermont",
+    "north carolina",
+    "south carolina",
+    "georgia",
+    "atlanta",
+    "florida",
+    "miami",
+    "tampa",
+    "orlando",
+]
+
+
+REMOTE_US_TERMS = [
+    "remote",
+    "remote us",
+    "remote usa",
+    "remote united states",
+    "united states remote",
+    "us remote",
+    "u s remote",
+    "anywhere in the us",
+    "anywhere in the united states",
+    "united states",
+    "usa",
+    "u s",
+]
+
+
 def load_config():
 
     with open(
@@ -230,11 +334,9 @@ def iso_date(value):
     if not value:
         return None
 
-    text = str(value)
-
     match = re.search(
         r"\d{4}-\d{2}-\d{2}",
-        text,
+        str(value),
     )
 
     if match:
@@ -267,9 +369,6 @@ def is_too_old(
     posted_date,
     max_days,
 ):
-
-    if not posted_date:
-        return False
 
     parsed = parse_iso_date(
         posted_date
@@ -380,69 +479,40 @@ def location_matches(
         norm(location)
 
     if not location_n:
-        return True
+        return False
 
-    positives = [
-        "united states",
-        "usa",
-        "u s",
-        "remote",
-        "north america",
-        "washington dc",
-        "district of columbia",
-        "maryland",
-        "virginia",
-        "arlington",
-        "mclean",
-        "reston",
-        "herndon",
-        "alexandria",
-        "tysons",
-        "fairfax",
-        "bethesda",
-        "baltimore",
-    ]
 
-    negatives = [
-        "united kingdom",
-        "canada",
-        "toronto",
-        "vancouver",
-        "europe",
-        "emea",
-        "india",
-        "germany",
-        "france",
-        "spain",
-        "italy",
-        "australia",
-        "singapore",
-        "japan",
-        "brazil",
-        "mexico",
-        "poland",
-        "romania",
-        "netherlands",
-        "ireland",
-    ]
-
+    # Foreign always loses, even when the string also says "remote".
     if any(
-        value in location_n
-        for value
-        in positives
-    ):
-
-        return True
-
-    if any(
-        value in location_n
-        for value
-        in negatives
+        term in location_n
+        for term
+        in FOREIGN_LOCATION_TERMS
     ):
 
         return False
 
-    return True
+
+    # U.S. remote / nationwide remote is allowed.
+    if any(
+        term in location_n
+        for term
+        in REMOTE_US_TERMS
+    ):
+
+        return True
+
+
+    # East Coast / DMV geography is allowed.
+    if any(
+        term in location_n
+        for term
+        in EAST_COAST_TERMS
+    ):
+
+        return True
+
+
+    return False
 
 
 def title_similarity(
@@ -469,30 +539,35 @@ def title_similarity(
 
         return 0.93
 
+
     a_tokens =
-        set(a.split())
+        set(
+            a.split()
+        )
 
     b_tokens =
-        set(b.split())
-
-    token_score = 0.0
-
-    if (
-        a_tokens
-        and b_tokens
-    ):
-
-        token_score = (
-            len(
-                a_tokens &
-                b_tokens
-            )
-            /
-            len(
-                a_tokens |
-                b_tokens
-            )
+        set(
+            b.split()
         )
+
+
+    token_score = (
+        len(
+            a_tokens &
+            b_tokens
+        )
+        /
+        len(
+            a_tokens |
+            b_tokens
+        )
+        if
+        a_tokens
+        and
+        b_tokens
+        else 0.0
+    )
+
 
     sequence_score =
         SequenceMatcher(
@@ -500,6 +575,7 @@ def title_similarity(
             a,
             b,
         ).ratio()
+
 
     return max(
         token_score,
@@ -541,11 +617,13 @@ def best_match(
     if not matches:
         return None
 
+
     matches.sort(
         key=lambda item:
             item[0],
         reverse=True,
     )
+
 
     return matches[0]
 
@@ -558,6 +636,7 @@ def company_slug_variants(
         norm(company)
         .split()
 
+
     while (
         base_words
         and
@@ -567,13 +646,16 @@ def company_slug_variants(
 
         base_words.pop()
 
+
     if not base_words:
         return []
+
 
     base =
         " ".join(
             base_words
         )
+
 
     candidates = [
         base,
@@ -587,6 +669,7 @@ def company_slug_variants(
             base_words
         ),
     ]
+
 
     aliases = {
         "trm labs":
@@ -681,6 +764,7 @@ def company_slug_variants(
             ],
     }
 
+
     candidates.extend(
         aliases.get(
             base,
@@ -688,31 +772,40 @@ def company_slug_variants(
         )
     )
 
+
     output = []
     seen = set()
 
+
     for candidate in candidates:
 
-        cleaned = re.sub(
-            r"[^A-Za-z0-9_-]",
-            "",
-            candidate,
-        )
+        cleaned =
+            re.sub(
+                r"[^A-Za-z0-9_-]",
+                "",
+                candidate,
+            )
 
         if not cleaned:
             continue
 
+
         key =
             cleaned.lower()
+
 
         if (
             key not in seen
         ):
 
-            seen.add(key)
+            seen.add(
+                key
+            )
+
             output.append(
                 cleaned
             )
+
 
     return output[:10]
 
@@ -724,21 +817,25 @@ def direct_from_provider_page(
     if not url:
         return None
 
+
     try:
 
-        r = SESSION.get(
-            url,
-            timeout=
-                REQUEST_TIMEOUT,
-            allow_redirects=True,
-        )
+        r =
+            SESSION.get(
+                url,
+                timeout=
+                    REQUEST_TIMEOUT,
+                allow_redirects=True,
+            )
 
         r.raise_for_status()
+
 
         final_url =
             canonical_url(
                 r.url
             )
+
 
         if is_direct_ats(
             final_url
@@ -746,11 +843,13 @@ def direct_from_provider_page(
 
             return final_url
 
+
         soup =
             BeautifulSoup(
                 r.text,
                 "html.parser",
             )
+
 
         for link in soup.find_all(
             "a",
@@ -767,15 +866,18 @@ def direct_from_provider_page(
                     )
                 )
 
+
             if is_direct_ats(
                 candidate
             ):
 
                 return candidate
 
+
     except Exception:
 
         pass
+
 
     return None
 
@@ -799,25 +901,32 @@ def ashby_resolve(
             )
         )
 
+
         try:
 
-            r = SESSION.get(
-                url,
-                timeout=
-                    REQUEST_TIMEOUT,
-            )
+            r =
+                SESSION.get(
+                    url,
+                    timeout=
+                        REQUEST_TIMEOUT,
+                )
+
 
             if (
                 r.status_code !=
                 200
             ):
+
                 continue
 
+
             jobs =
-                r.json().get(
+                r.json()
+                .get(
                     "jobs",
                     [],
                 )
+
 
             match =
                 best_match(
@@ -830,11 +939,14 @@ def ashby_resolve(
                         or "",
                 )
 
+
             if not match:
                 continue
 
+
             score, job =
                 match
+
 
             job_url =
                 job.get(
@@ -843,6 +955,7 @@ def ashby_resolve(
                     "applyUrl"
                 )
 
+
             if (
                 not job_url
                 or
@@ -850,7 +963,9 @@ def ashby_resolve(
                     job_url
                 )
             ):
+
                 continue
+
 
             return {
                 "url":
@@ -896,9 +1011,11 @@ def ashby_resolve(
                     score,
             }
 
+
         except Exception:
 
             continue
+
 
     return None
 
@@ -922,32 +1039,40 @@ def lever_resolve(
             )
         )
 
+
         try:
 
-            r = SESSION.get(
-                url,
-                params={
-                    "mode":
-                        "json",
-                },
-                timeout=
-                    REQUEST_TIMEOUT,
-            )
+            r =
+                SESSION.get(
+                    url,
+                    params={
+                        "mode":
+                            "json",
+                    },
+                    timeout=
+                        REQUEST_TIMEOUT,
+                )
+
 
             if (
                 r.status_code !=
                 200
             ):
+
                 continue
+
 
             postings =
                 r.json()
+
 
             if not isinstance(
                 postings,
                 list,
             ):
+
                 continue
+
 
             match =
                 best_match(
@@ -960,11 +1085,14 @@ def lever_resolve(
                         or "",
                 )
 
+
             if not match:
                 continue
 
+
             score, job =
                 match
+
 
             posting_id =
                 str(
@@ -974,14 +1102,17 @@ def lever_resolve(
                     or ""
                 )
 
+
             if not posting_id:
                 continue
+
 
             direct_url = (
                 "https://jobs.lever.co/"
                 f"{site}/"
                 f"{posting_id}"
             )
+
 
             location =
                 (
@@ -993,6 +1124,7 @@ def lever_resolve(
                     "location",
                     "",
                 )
+
 
             return {
                 "url":
@@ -1035,9 +1167,11 @@ def lever_resolve(
                     score,
             }
 
+
         except Exception:
 
             continue
+
 
     return None
 
@@ -1064,29 +1198,36 @@ def greenhouse_resolve(
             "/jobs"
         )
 
+
         try:
 
-            r = SESSION.get(
-                url,
-                params={
-                    "content":
-                        "true",
-                },
-                timeout=
-                    REQUEST_TIMEOUT,
-            )
+            r =
+                SESSION.get(
+                    url,
+                    params={
+                        "content":
+                            "true",
+                    },
+                    timeout=
+                        REQUEST_TIMEOUT,
+                )
+
 
             if (
                 r.status_code !=
                 200
             ):
+
                 continue
 
+
             postings =
-                r.json().get(
+                r.json()
+                .get(
                     "jobs",
                     [],
                 )
+
 
             match =
                 best_match(
@@ -1099,11 +1240,14 @@ def greenhouse_resolve(
                         or "",
                 )
 
+
             if not match:
                 continue
 
+
             score, job =
                 match
+
 
             direct_url =
                 job.get(
@@ -1111,11 +1255,13 @@ def greenhouse_resolve(
                 )
                 or ""
 
+
             if not is_direct_ats(
                 direct_url
             ):
 
                 continue
+
 
             location =
                 (
@@ -1127,6 +1273,7 @@ def greenhouse_resolve(
                     "name",
                     "",
                 )
+
 
             return {
                 "url":
@@ -1169,9 +1316,11 @@ def greenhouse_resolve(
                     score,
             }
 
+
         except Exception:
 
             continue
+
 
     return None
 
@@ -1187,33 +1336,39 @@ def smartrecruiters_resolve(
 
         try:
 
-            r = SESSION.get(
-                (
-                    "https://api."
-                    "smartrecruiters.com/"
-                    "v1/companies/"
-                    f"{company_id}/"
-                    "postings"
-                ),
-                params={
-                    "limit":
-                        100,
-                },
-                timeout=
-                    REQUEST_TIMEOUT,
-            )
+            r =
+                SESSION.get(
+                    (
+                        "https://api."
+                        "smartrecruiters.com/"
+                        "v1/companies/"
+                        f"{company_id}/"
+                        "postings"
+                    ),
+                    params={
+                        "limit":
+                            100,
+                    },
+                    timeout=
+                        REQUEST_TIMEOUT,
+                )
+
 
             if (
                 r.status_code !=
                 200
             ):
+
                 continue
 
+
             postings =
-                r.json().get(
+                r.json()
+                .get(
                     "content",
                     [],
                 )
+
 
             match =
                 best_match(
@@ -1226,11 +1381,14 @@ def smartrecruiters_resolve(
                         or "",
                 )
 
+
             if not match:
                 continue
 
+
             score, job =
                 match
+
 
             posting_id =
                 str(
@@ -1240,14 +1398,17 @@ def smartrecruiters_resolve(
                     or ""
                 )
 
+
             if not posting_id:
                 continue
+
 
             job_title =
                 job.get(
                     "name"
                 )
                 or title
+
 
             title_slug =
                 re.sub(
@@ -1258,6 +1419,7 @@ def smartrecruiters_resolve(
                     ),
                 ).strip("-")
 
+
             direct_url = (
                 "https://jobs."
                 "smartrecruiters.com/"
@@ -1266,11 +1428,13 @@ def smartrecruiters_resolve(
                 f"{title_slug}"
             )
 
+
             loc =
                 job.get(
                     "location"
                 )
                 or {}
+
 
             location =
                 ", ".join(
@@ -1289,6 +1453,7 @@ def smartrecruiters_resolve(
                     ]
                     if value
                 )
+
 
             return {
                 "url":
@@ -1319,9 +1484,11 @@ def smartrecruiters_resolve(
                     score,
             }
 
+
         except Exception:
 
             continue
+
 
     return None
 
@@ -1336,6 +1503,7 @@ def resolve_direct_ats(
         direct_from_provider_page(
             provider_url
         )
+
 
     if direct:
 
@@ -1378,9 +1546,11 @@ def resolve_direct_ats(
                 title,
             )
 
+
         if result:
 
             return result
+
 
     return None
 
@@ -1389,32 +1559,36 @@ def jobicy(cfg):
 
     seen = set()
 
+
     for title in cfg[
         "titles"
     ]:
 
         try:
 
-            r = SESSION.get(
-                (
-                    "https://jobicy.com/"
-                    "api/v2/"
-                    "remote-jobs"
-                ),
-                params={
-                    "count":
-                        200,
+            r =
+                SESSION.get(
+                    (
+                        "https://jobicy.com/"
+                        "api/v2/"
+                        "remote-jobs"
+                    ),
+                    params={
+                        "count":
+                            200,
 
-                    "geo":
-                        "usa",
+                        "geo":
+                            "usa",
 
-                    "tag":
-                        title,
-                },
-                timeout=25,
-            )
+                        "tag":
+                            title,
+                    },
+                    timeout=25,
+                )
+
 
             r.raise_for_status()
+
 
             for job in (
                 r.json()
@@ -1432,17 +1606,22 @@ def jobicy(cfg):
                         or ""
                     )
 
+
                 if (
                     jid
                     and
                     jid in seen
                 ):
+
                     continue
 
+
                 if jid:
+
                     seen.add(
                         jid
                     )
+
 
                 yield {
                     "company":
@@ -1495,6 +1674,7 @@ def jobicy(cfg):
                         ),
                 }
 
+
         except Exception as e:
 
             print(
@@ -1507,15 +1687,18 @@ def remotive():
 
     try:
 
-        r = SESSION.get(
-            (
-                "https://remotive.com/"
-                "api/remote-jobs"
-            ),
-            timeout=25,
-        )
+        r =
+            SESSION.get(
+                (
+                    "https://remotive.com/"
+                    "api/remote-jobs"
+                ),
+                timeout=25,
+            )
+
 
         r.raise_for_status()
+
 
         for job in (
             r.json()
@@ -1576,6 +1759,7 @@ def remotive():
                     ),
             }
 
+
     except Exception as e:
 
         print(
@@ -1588,15 +1772,19 @@ def remoteok():
 
     try:
 
-        r = SESSION.get(
-            "https://remoteok.com/api",
-            timeout=25,
-        )
+        r =
+            SESSION.get(
+                "https://remoteok.com/api",
+                timeout=25,
+            )
+
 
         r.raise_for_status()
 
+
         data =
             r.json()
+
 
         if (
             isinstance(
@@ -1611,6 +1799,7 @@ def remoteok():
 
             data =
                 data[1:]
+
 
         for job in (
             data
@@ -1676,6 +1865,7 @@ def remoteok():
                     ),
             }
 
+
     except Exception as e:
 
         print(
@@ -1700,31 +1890,34 @@ def supabase_headers():
 
 def existing_keys():
 
-    r = SESSION.get(
-        (
-            f"{SUPABASE_URL}"
-            "/rest/v1/"
-            "discovered_jobs"
-        ),
-        headers=
-            supabase_headers(),
-        params={
-            "select":
-                "source_key",
+    r =
+        SESSION.get(
+            (
+                f"{SUPABASE_URL}"
+                "/rest/v1/"
+                "discovered_jobs"
+            ),
+            headers=
+                supabase_headers(),
+            params={
+                "select":
+                    "source_key",
 
-            "user_id":
-                f"eq.{USER_ID}",
+                "user_id":
+                    f"eq.{USER_ID}",
 
-            "source_key":
-                "not.is.null",
+                "source_key":
+                    "not.is.null",
 
-            "limit":
-                "10000",
-        },
-        timeout=30,
-    )
+                "limit":
+                    "10000",
+            },
+            timeout=30,
+        )
+
 
     r.raise_for_status()
+
 
     return {
         row[
@@ -1745,6 +1938,7 @@ def insert_rows(
     if not rows:
         return
 
+
     headers = {
         **supabase_headers(),
 
@@ -1758,6 +1952,7 @@ def insert_rows(
             ),
     }
 
+
     for i in range(
         0,
         len(rows),
@@ -1770,18 +1965,21 @@ def insert_rows(
                 i + 100
             ]
 
-        r = SESSION.post(
-            (
-                f"{SUPABASE_URL}"
-                "/rest/v1/"
-                "discovered_jobs"
-            ),
-            headers=headers,
-            data=json.dumps(
-                batch
-            ),
-            timeout=30,
-        )
+
+        r =
+            SESSION.post(
+                (
+                    f"{SUPABASE_URL}"
+                    "/rest/v1/"
+                    "discovered_jobs"
+                ),
+                headers=headers,
+                data=json.dumps(
+                    batch
+                ),
+                timeout=30,
+            )
+
 
         if (
             r.status_code >=
@@ -1800,6 +1998,7 @@ def main():
     cfg =
         load_config()
 
+
     max_age_days =
         int(
             cfg.get(
@@ -1808,8 +2007,10 @@ def main():
             )
         )
 
+
     known =
         existing_keys()
+
 
     raw = []
 
@@ -1848,6 +2049,7 @@ def main():
                 "title"
             ]
         ):
+
             continue
 
 
@@ -1888,6 +2090,21 @@ def main():
             ],
             cfg,
         ):
+
+            print(
+                "EXCLUDED LOCATION:",
+                job[
+                    "company"
+                ],
+                "|",
+                job[
+                    "title"
+                ],
+                "|",
+                job[
+                    "location"
+                ],
+            )
 
             continue
 
@@ -1951,9 +2168,11 @@ def main():
 
 
     rows = []
+
     resolved = 0
     unresolved = 0
     stale = 0
+    location_rejected = 0
     duplicates = 0
 
 
@@ -2012,6 +2231,40 @@ def main():
             continue
 
 
+        resolved_location = (
+            ats.get(
+                "location"
+            )
+            or
+            job.get(
+                "location"
+            )
+            or ""
+        )
+
+
+        # Second and final location gate:
+        # reject Canada / Australia / Costa Rica etc.
+        # even if the source feed looked acceptable.
+        if not location_matches(
+            resolved_location,
+            cfg,
+        ):
+
+            location_rejected += 1
+
+            print(
+                "REJECTED ATS LOCATION:",
+                company,
+                "|",
+                title,
+                "|",
+                resolved_location,
+            )
+
+            continue
+
+
         resolved_posted_date = (
             ats.get(
                 "posted_date"
@@ -2053,6 +2306,7 @@ def main():
         ):
 
             duplicates += 1
+
             continue
 
 
@@ -2061,18 +2315,6 @@ def main():
                 "title"
             )
             or title
-        )
-
-
-        resolved_location = (
-            ats.get(
-                "location"
-            )
-            or
-            job.get(
-                "location"
-            )
-            or ""
         )
 
 
@@ -2114,6 +2356,13 @@ def main():
                         "Remote"
                         if
                         "remote"
+                        in norm(
+                            resolved_location
+                        )
+                        else
+                        "Hybrid"
+                        if
+                        "hybrid"
                         in norm(
                             resolved_location
                         )
@@ -2180,6 +2429,8 @@ def main():
             "|",
             resolved_title,
             "|",
+            resolved_location,
+            "|",
             resolved_posted_date,
             "->",
             direct_url,
@@ -2214,6 +2465,11 @@ def main():
     )
 
     print(
+        "Location-rejected postings:",
+        location_rejected,
+    )
+
+    print(
         "Already known / duplicates:",
         duplicates,
     )
@@ -2236,4 +2492,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
