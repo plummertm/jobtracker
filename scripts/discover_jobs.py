@@ -92,6 +92,93 @@ US_REMOTE_TERMS = [
     "united states", "usa"
 ]
 
+# Resume-supported evidence used for fit scoring.
+# This is intentionally limited to experience explicitly supported by Toni's resume.
+RESUME_PROFILE = {
+    "core_presales": {
+        "weight": 30,
+        "skills": {
+            "technical discovery": ["technical discovery", "discovery"],
+            "demos": ["demo", "demonstration"],
+            "workshops": ["workshop"],
+            "pocs/povs": ["poc", "proof of concept", "pov", "proof of value", "evaluation"],
+            "architecture reviews": ["architecture review", "solution architecture", "solutions architecture"],
+            "executive presentations": ["executive presentation", "executive-facing", "executive audience"],
+            "rfp/rfi": ["rfp", "rfi"],
+            "sales partnership": ["account executive", "ae partnership", "sales team", "presales", "pre-sales", "sales engineering"],
+            "voice of customer": ["voice of customer", "customer feedback", "field feedback"],
+        },
+    },
+    "cloud_platform": {
+        "weight": 25,
+        "skills": {
+            "AWS": ["aws", "amazon web services"],
+            "Azure": ["azure"],
+            "GCP": ["gcp", "google cloud"],
+            "Kubernetes": ["kubernetes", "eks"],
+            "Docker": ["docker", "container"],
+            "networking": ["networking", "vpc", "subnet", "routing"],
+            "IAM": ["iam", "rbac", "identity and access"],
+            "high availability": ["high availability", "resiliency", "disaster recovery"],
+            "CloudFormation": ["cloudformation"],
+            "REST APIs": ["rest api", "restful api", "api integration", "apis"],
+        },
+    },
+    "security_federal": {
+        "weight": 15,
+        "skills": {
+            "FedRAMP": ["fedramp"],
+            "FISMA": ["fisma"],
+            "NIST 800-53": ["nist 800-53", "nist 800 53"],
+            "RMF/ATO": ["rmf", "ato", "authorization to operate"],
+            "Zero Trust": ["zero trust"],
+            "cloud security": ["cloud security"],
+            "federal/public sector": ["federal", "public sector", "government", "civilian agency"],
+            "risk/vulnerability": ["vulnerability", "risk remediation", "security controls"],
+        },
+    },
+    "ai_data_automation": {
+        "weight": 15,
+        "skills": {
+            "Generative AI": ["generative ai", "genai", "gen ai"],
+            "LLMs": ["llm", "large language model"],
+            "RAG": ["rag", "retrieval augmented generation"],
+            "AI/ML": ["machine learning", "ai/ml", "artificial intelligence"],
+            "Python": ["python"],
+            "SQL": ["sql"],
+            "PostgreSQL": ["postgresql", "postgres"],
+            "MySQL": ["mysql"],
+            "GitHub/GitLab": ["github", "gitlab"],
+            "Ansible": ["ansible"],
+            "CI/CD": ["ci/cd", "cicd", "continuous integration"],
+        },
+    },
+    "customer_strategy": {
+        "weight": 15,
+        "skills": {
+            "customer-facing": ["customer-facing", "customer facing", "customers"],
+            "stakeholder communication": ["stakeholder", "cross-functional", "cross functional"],
+            "product/engineering collaboration": ["product team", "engineering team", "product and engineering", "product/engineering"],
+            "technical advising": ["technical advisor", "trusted advisor", "technical guidance"],
+            "troubleshooting": ["troubleshooting", "debugging", "production issue"],
+        },
+    },
+}
+
+# Common requirements that are NOT supported directly by the resume and should be surfaced as gaps.
+GAP_SKILLS = {
+    "Terraform": ["terraform"],
+    "Kafka/Confluent": ["kafka", "confluent"],
+    "Helm": ["helm"],
+    "Go": ["golang", "go language"],
+    "Ruby": ["ruby"],
+    "Snowflake": ["snowflake"],
+    "Splunk": ["splunk"],
+    "Service mesh": ["istio", "service mesh"],
+}
+
+RESUME_RELEVANT_YEARS = 6
+
 def load_config():
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -215,6 +302,139 @@ def location_matches(location, cfg):
         return True
 
     return False
+
+def requires_active_ts(*parts):
+    text = " ".join(clean(part) for part in parts if part).lower()
+    if not text:
+        return False
+
+    # Evaluate sentence-sized fragments so "ability to obtain" does not mask an
+    # unrelated active-clearance requirement elsewhere in the posting.
+    fragments = re.split(r"[\n\r.!?;]+", text)
+    clearance_terms = ("top secret", "ts/sci", "ts sci", "tssci")
+    obtain_terms = (
+        "ability to obtain", "able to obtain", "eligible to obtain",
+        "can obtain", "willing to obtain", "obtain a top secret",
+        "obtain top secret", "sponsorship for", "sponsor for"
+    )
+    active_terms = (
+        "active", "current", "currently hold", "must possess", "must hold",
+        "required", "requirement", "requires", "possess a", "hold a"
+    )
+
+    for fragment in fragments:
+        if not any(term in fragment for term in clearance_terms):
+            continue
+        if any(term in fragment for term in obtain_terms) and not any(
+            term in fragment for term in ("active", "current", "currently hold", "must possess", "must hold")
+        ):
+            continue
+        if any(term in fragment for term in active_terms):
+            return True
+        # A bare "TS/SCI clearance" or "Top Secret clearance" in required-qualification
+        # text is treated as an active-clearance requirement unless the posting says it can be obtained.
+        if "clearance" in fragment and not any(term in fragment for term in obtain_terms):
+            return True
+
+    return False
+
+
+def _contains_any(text, phrases):
+    return any(phrase in text for phrase in phrases)
+
+
+def calculate_match(title, description, location=""):
+    text = norm(" ".join([title or "", description or "", location or ""]))
+    raw_text = clean(" ".join([title or "", description or "", location or ""])).lower()
+
+    # Title alignment is real evidence but deliberately capped so a title alone
+    # cannot create an inflated match percentage.
+    title_n = norm(title)
+    title_score = 16
+    if any(term in title_n for term in [
+        "solutions engineer", "sales engineer", "solutions architect",
+        "customer engineer", "forward deployed engineer", "presales engineer",
+        "pre sales engineer"
+    ]):
+        title_score = 20
+
+    matched_labels = []
+    missing_labels = []
+    earned = 0.0
+    available = 0.0
+
+    for category in RESUME_PROFILE.values():
+        weight = float(category["weight"])
+        detected = []
+        matched = []
+        for label, phrases in category["skills"].items():
+            phrases_n = [norm(p) for p in phrases]
+            if _contains_any(text, phrases_n):
+                detected.append(label)
+                matched.append(label)  # every item in this profile is resume-supported
+
+        if detected:
+            available += weight
+            ratio = len(matched) / len(detected)
+            earned += weight * ratio
+            matched_labels.extend(matched)
+
+    # If the posting does not mention many recognizable technologies, do not
+    # punish it for missing keywords; use the title/customer-facing evidence only.
+    if available:
+        requirement_score = (earned / available) * 70.0
+    else:
+        requirement_score = 48.0
+
+    score = title_score + requirement_score
+
+    # Experience-level penalty based strictly on the resume timeline.
+    years = [int(x) for x in re.findall(r"(?:minimum of |at least |minimum )?(\d{1,2})\+?\s*(?:years|yrs)", raw_text)]
+    required_years = max(years) if years else 0
+    if required_years > RESUME_RELEVANT_YEARS:
+        score -= min(20, (required_years - RESUME_RELEVANT_YEARS) * 4)
+        missing_labels.append(f"{required_years}+ years requested")
+
+    for label, phrases in GAP_SKILLS.items():
+        if _contains_any(text, [norm(p) for p in phrases]):
+            missing_labels.append(label)
+            score -= 3
+
+    score = max(35, min(96, round(score)))
+
+    # Keep explanations compact and grounded in resume evidence.
+    strengths = []
+    preferred_order = [
+        "technical discovery", "demos", "pocs/povs", "AWS", "Azure", "GCP",
+        "Kubernetes", "federal/public sector", "FedRAMP", "NIST 800-53",
+        "Python", "Generative AI", "LLMs", "RAG", "customer-facing",
+        "stakeholder communication", "troubleshooting"
+    ]
+    matched_set = set(matched_labels)
+    for label in preferred_order:
+        if label in matched_set and label not in strengths:
+            strengths.append(label)
+        if len(strengths) == 4:
+            break
+
+    if not strengths:
+        strengths = ["solutions engineering / architecture title alignment"]
+
+    # Deduplicate gaps while preserving order.
+    gaps = []
+    for label in missing_labels:
+        if label not in gaps:
+            gaps.append(label)
+
+    strength_text = ", ".join(strengths)
+    if gaps:
+        gap_text = ", ".join(gaps[:3])
+        summary = f"Strong: {strength_text}. Gaps from resume evidence: {gap_text}. No active-TS blocker identified."
+    else:
+        summary = f"Strong: {strength_text}. No major resume-evidence gap detected in the parsed posting. No active-TS blocker identified."
+
+    return score, summary
+
 
 def title_similarity(candidate, actual):
     a = norm(candidate)
@@ -763,6 +983,127 @@ def existing_keys():
         if row.get("source_key")
     }
 
+def update_existing_match(key, match_score, match_summary, last_seen_at):
+    headers = {
+        **supabase_headers(),
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+    }
+    r = SESSION.patch(
+        f"{SUPABASE_URL}/rest/v1/discovered_jobs",
+        headers=headers,
+        params={
+            "user_id": f"eq.{USER_ID}",
+            "source_key": f"eq.{key}",
+        },
+        data=json.dumps({
+            "match_score": match_score,
+            "match_summary": match_summary,
+            "last_seen_at": last_seen_at,
+        }),
+        timeout=30,
+    )
+    if r.status_code >= 300:
+        raise RuntimeError(f"Supabase match update failed {r.status_code}: {r.text}")
+
+
+def backfill_existing_matches():
+    r = SESSION.get(
+        f"{SUPABASE_URL}/rest/v1/discovered_jobs",
+        headers=supabase_headers(),
+        params={
+            "select": "id,role,description,location,match_score,match_summary",
+            "user_id": f"eq.{USER_ID}",
+            "limit": "10000",
+        },
+        timeout=30,
+    )
+    r.raise_for_status()
+
+    updated = 0
+    for row in r.json():
+        job_id = row.get("id")
+        if not job_id:
+            continue
+        if row.get("match_score") is not None and row.get("match_summary"):
+            continue
+
+        score, summary = calculate_match(
+            row.get("role") or "",
+            row.get("description") or "",
+            row.get("location") or "",
+        )
+
+        if not row.get("description"):
+            summary = (
+                summary
+                + " Fit is provisional because the stored posting does not yet contain full JD text."
+            )
+
+        pr = SESSION.patch(
+            f"{SUPABASE_URL}/rest/v1/discovered_jobs",
+            headers={
+                **supabase_headers(),
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
+            params={
+                "id": f"eq.{job_id}",
+                "user_id": f"eq.{USER_ID}",
+            },
+            data=json.dumps({
+                "match_score": score,
+                "match_summary": summary,
+                "last_seen_at": datetime.now(timezone.utc).isoformat(),
+            }),
+            timeout=30,
+        )
+        if pr.status_code >= 300:
+            raise RuntimeError(
+                f"Supabase match backfill failed {pr.status_code}: {pr.text}"
+            )
+        updated += 1
+
+    if updated:
+        print(f"Backfilled match insight for {updated} existing discovery rows.")
+
+
+def purge_existing_active_ts():
+    r = SESSION.get(
+        f"{SUPABASE_URL}/rest/v1/discovered_jobs",
+        headers=supabase_headers(),
+        params={
+            "select": "id,role,description",
+            "user_id": f"eq.{USER_ID}",
+            "limit": "10000",
+        },
+        timeout=30,
+    )
+    r.raise_for_status()
+
+    purge_ids = [
+        row["id"]
+        for row in r.json()
+        if row.get("id") and requires_active_ts(row.get("role"), row.get("description"))
+    ]
+
+    for job_id in purge_ids:
+        dr = SESSION.delete(
+            f"{SUPABASE_URL}/rest/v1/discovered_jobs",
+            headers=supabase_headers(),
+            params={
+                "id": f"eq.{job_id}",
+                "user_id": f"eq.{USER_ID}",
+            },
+            timeout=30,
+        )
+        if dr.status_code >= 300:
+            raise RuntimeError(f"Supabase active-TS purge failed {dr.status_code}: {dr.text}")
+
+    if purge_ids:
+        print(f"Purged {len(purge_ids)} existing active-TS discovery rows.")
+
+
 def insert_rows(rows):
     if not rows:
         return
@@ -798,6 +1139,8 @@ def main():
         )
     )
 
+    purge_existing_active_ts()
+    backfill_existing_matches()
     known = existing_keys()
 
     raw = []
@@ -842,6 +1185,15 @@ def main():
             job["title"],
             cfg,
         ):
+            continue
+
+        if requires_active_ts(job.get("title"), job.get("description")):
+            print(
+                "EXCLUDED ACTIVE TS:",
+                job["company"],
+                "|",
+                job["title"],
+            )
             continue
 
         if not location_matches(
@@ -975,9 +1327,7 @@ def main():
             direct_url
         )
 
-        if key in known:
-            duplicates += 1
-            continue
+        is_existing = key in known
 
         resolved_title = (
             ats.get("title")
@@ -989,6 +1339,41 @@ def main():
             or job.get("description")
             or ""
         )
+
+        if requires_active_ts(resolved_title, resolved_description):
+            print(
+                "EXCLUDED ACTIVE TS AFTER ATS RESOLUTION:",
+                company,
+                "|",
+                resolved_title,
+            )
+            continue
+
+        match_score, match_summary = calculate_match(
+            resolved_title,
+            resolved_description,
+            resolved_location,
+        )
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        if is_existing:
+            update_existing_match(
+                key,
+                match_score,
+                match_summary,
+                now_iso,
+            )
+            duplicates += 1
+            print(
+                "UPDATED MATCH:",
+                company,
+                "|",
+                resolved_title,
+                "|",
+                f"{match_score}%",
+            )
+            continue
 
         rows.append({
             "user_id": USER_ID,
@@ -1004,6 +1389,8 @@ def main():
                 if "hybrid" in norm(resolved_location)
                 else None
             ),
+            "match_score": match_score,
+            "match_summary": match_summary,
             "source_site": (
                 f"{company} Careers · "
                 f"{ats.get('source_type', source_type(direct_url)).title()}"
@@ -1016,8 +1403,8 @@ def main():
             ),
             "source_key": key,
             "decision": "new",
-            "first_seen_at": datetime.now(timezone.utc).isoformat(),
-            "last_seen_at": datetime.now(timezone.utc).isoformat(),
+            "first_seen_at": now_iso,
+            "last_seen_at": now_iso,
         })
 
         known.add(key)
