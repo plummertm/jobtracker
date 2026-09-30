@@ -1,30 +1,38 @@
 #!/usr/bin/env python3
 """
-Title-first automatic job discovery using FREE web search + DIRECT employer ATS links only.
+V4 automatic job discovery.
 
-How it works:
-1) Searches Bing RSS and DuckDuckGo HTML for configured job titles restricted to:
-   - jobs.ashbyhq.com
-   - jobs.lever.co
-   - job-boards.greenhouse.io
-   - boards.greenhouse.io
-   - jobs.smartrecruiters.com
-2) Rejects LinkedIn, Indeed, ZipRecruiter, Appcast, Glassdoor, etc.
-3) Opens each direct ATS page and extracts title/company/location where possible.
-4) Filters against your title/location preferences.
-5) Deduplicates with source_key.
-6) Inserts new jobs into Supabase discovered_jobs.
+Goal:
+- NO company list
+- NO LinkedIn/Indeed/ZipRecruiter/Appcast URLs stored
+- ONLY direct ATS/company-career apply URLs stored
+- FREE sources only
 
-No paid API and no manual company list.
+Discovery strategy:
+1) Pull broad title-matching jobs from free public feeds:
+   - Jobicy
+   - Remotive
+   - RemoteOK
+2) For each candidate, try to resolve the employer's direct ATS/careers URL by:
+   - extracting canonical/employer links from the posting page
+   - searching Bing RSS for the exact company + title restricted to direct ATS hosts
+3) Only insert if a direct ATS URL is found.
+
+This avoids DuckDuckGo, which was blocking GitHub Actions.
 """
 
-import os, re, json, html, hashlib, urllib.parse, urllib.request
+import os
+import re
+import json
+import html
+import hashlib
+import urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
-from typing import Optional, List, Dict
 
-import requests
 from bs4 import BeautifulSoup
+import requests
+
 
 SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -35,9 +43,13 @@ CONFIG_PATH = os.path.join(ROOT, "config", "sources.json")
 
 S = requests.Session()
 S.headers.update({
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/153.0 Safari/537.36",
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/153.0 Safari/537.36"
+    ),
     "Accept-Language": "en-US,en;q=0.9",
+    "Accept": "application/json,text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
 })
 
 DIRECT_ATS_HOSTS = {
@@ -47,20 +59,36 @@ DIRECT_ATS_HOSTS = {
     "boards.greenhouse.io": "greenhouse",
     "jobs.smartrecruiters.com": "smartrecruiters",
 }
-BLOCKED_HOST_FRAGMENTS = [
-    "linkedin.", "indeed.", "ziprecruiter.", "glassdoor.", "appcast.",
-    "monster.", "careerbuilder.", "simplyhired.", "talent.com", "jooble."
+
+BLOCKED_HOST_PARTS = [
+    "linkedin.",
+    "indeed.",
+    "ziprecruiter.",
+    "appcast.",
+    "glassdoor.",
+    "monster.",
+    "careerbuilder.",
+    "simplyhired.",
+    "talent.com",
+    "jooble.",
+    "remoteok.",
+    "remotive.",
+    "jobicy.",
 ]
+
 
 def load_config():
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
+
 def norm(v):
     return re.sub(r"\s+", " ", str(v or "").strip().lower())
 
+
 def clean(v):
     return re.sub(r"\s+", " ", html.unescape(str(v or ""))).strip()
+
 
 def host_of(url):
     try:
@@ -68,273 +96,603 @@ def host_of(url):
     except Exception:
         return ""
 
+
 def canonical_url(url):
     try:
         p = urllib.parse.urlsplit(url)
-        # Strip tracking/query params; ATS job ID lives in path.
-        return urllib.parse.urlunsplit((p.scheme or "https", p.netloc.lower(), p.path.rstrip("/"), "", ""))
+        return urllib.parse.urlunsplit(
+            (
+                p.scheme or "https",
+                p.netloc.lower(),
+                p.path.rstrip("/"),
+                "",
+                "",
+            )
+        )
     except Exception:
         return url
 
+
 def is_direct_ats(url):
     h = host_of(url)
-    if any(x in h for x in BLOCKED_HOST_FRAGMENTS):
+
+    if any(x in h for x in BLOCKED_HOST_PARTS):
         return False
+
     return h in DIRECT_ATS_HOSTS
+
 
 def source_type(url):
     return DIRECT_ATS_HOSTS.get(host_of(url), "direct")
 
+
 def title_matches(title, cfg):
     t = norm(title)
+
     if any(norm(x) in t for x in cfg.get("exclude_titles", [])):
         return False
+
     return any(norm(x) in t for x in cfg.get("titles", []))
+
 
 def location_matches(location, cfg):
     if not cfg.get("us_only", True):
         return True
+
     l = norm(location)
+
     if not l:
         return True
-    negatives = [
-        "united kingdom"," uk","canada","toronto","vancouver","europe","emea",
-        "india","germany","france","spain","italy","australia","singapore",
-        "japan","brazil","mexico","poland","romania","netherlands","ireland"
-    ]
+
     positives = [
-        "united states","usa","u.s.","remote","us remote","north america",
-        "washington, dc","washington dc","district of columbia","maryland","virginia",
-        "arlington","mclean","reston","herndon","alexandria","tysons","fairfax","bethesda"
+        "united states",
+        "usa",
+        "u.s.",
+        "remote",
+        "us remote",
+        "north america",
+        "washington, dc",
+        "washington dc",
+        "district of columbia",
+        "maryland",
+        "virginia",
+        "arlington",
+        "mclean",
+        "reston",
+        "herndon",
+        "alexandria",
+        "tysons",
+        "fairfax",
+        "bethesda",
     ]
+
+    negatives = [
+        "united kingdom",
+        " uk",
+        "canada",
+        "toronto",
+        "vancouver",
+        "europe",
+        "emea",
+        "india",
+        "germany",
+        "france",
+        "spain",
+        "italy",
+        "australia",
+        "singapore",
+        "japan",
+        "brazil",
+        "mexico",
+        "poland",
+        "romania",
+        "netherlands",
+        "ireland",
+    ]
+
     if any(x in l for x in positives):
         return True
+
     if any(x in l for x in negatives):
         return False
+
     return True
 
+
 def key_for(url):
-    return hashlib.sha256(canonical_url(url).encode("utf-8")).hexdigest()[:48]
+    return hashlib.sha256(
+        canonical_url(url).encode("utf-8")
+    ).hexdigest()[:48]
 
-def unwrap_search_url(url):
-    """Unwrap DuckDuckGo redirect URLs when possible."""
-    if "duckduckgo.com/l/" in url:
-        q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
-        if q.get("uddg"):
-            return urllib.parse.unquote(q["uddg"][0])
-    return url
 
-def bing_search(query, max_results=30):
-    url = "https://www.bing.com/search?format=rss&q=" + urllib.parse.quote(query)
+def bing_search(query, max_results=10):
+    url = (
+        "https://www.bing.com/search?format=rss&q="
+        + urllib.parse.quote(query)
+    )
+
     try:
-        r = S.get(url, timeout=25)
+        r = S.get(url, timeout=20)
         r.raise_for_status()
+
         root = ET.fromstring(r.text)
-        results = []
+
+        out = []
+
         for item in root.findall(".//item"):
             link = item.findtext("link") or ""
             title = item.findtext("title") or ""
             desc = item.findtext("description") or ""
+
             if link:
-                results.append({"url": link, "title": title, "snippet": desc, "engine": "bing"})
-            if len(results) >= max_results:
+                out.append({
+                    "url": link,
+                    "title": title,
+                    "snippet": desc,
+                })
+
+            if len(out) >= max_results:
                 break
-        return results
+
+        return out
+
     except Exception as e:
-        print("  Bing search error:", e)
+        print("Bing error:", e)
         return []
 
-def ddg_search(query, max_results=30):
-    url = "https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(query)
+
+def direct_from_page(url):
     try:
-        r = S.get(url, timeout=25)
+        r = S.get(
+            url,
+            timeout=20,
+            allow_redirects=True,
+        )
+
         r.raise_for_status()
-        soup = BeautifulSoup(r.text, "html.parser")
-        results = []
-        for a in soup.select("a.result__a"):
-            href = unwrap_search_url(a.get("href") or "")
-            if not href:
-                continue
-            result = a.find_parent(class_="result")
-            snippet = ""
-            if result:
-                sn = result.select_one(".result__snippet")
-                snippet = sn.get_text(" ", strip=True) if sn else ""
-            results.append({
-                "url": href,
-                "title": a.get_text(" ", strip=True),
-                "snippet": snippet,
-                "engine": "duckduckgo"
-            })
-            if len(results) >= max_results:
-                break
-        return results
-    except Exception as e:
-        print("  DuckDuckGo search error:", e)
-        return []
 
-def search_direct_jobs(cfg):
-    found = {}
-    domains = list(DIRECT_ATS_HOSTS.keys())
-    # Search each configured title against each ATS domain.
-    for title in cfg["titles"]:
-        for domain in domains:
-            q = f'site:{domain} "{title}" ("United States" OR Remote OR "Washington DC" OR Virginia OR Maryland)'
-            print("Search:", title, "@", domain)
-            for row in bing_search(q, cfg.get("results_per_query", 20)) + ddg_search(q, cfg.get("results_per_query", 20)):
-                u = canonical_url(unwrap_search_url(row["url"]))
-                if is_direct_ats(u):
-                    found[u] = row
-    return list(found.values())
-
-def first_jsonld_job(soup):
-    for tag in soup.find_all("script", attrs={"type":"application/ld+json"}):
-        txt = tag.string or tag.get_text()
-        if not txt:
-            continue
-        try:
-            obj = json.loads(txt)
-        except Exception:
-            continue
-        objs = obj if isinstance(obj, list) else [obj]
-        for x in objs:
-            if isinstance(x, dict) and x.get("@type") == "JobPosting":
-                return x
-            if isinstance(x, dict) and isinstance(x.get("@graph"), list):
-                for y in x["@graph"]:
-                    if isinstance(y, dict) and y.get("@type") == "JobPosting":
-                        return y
-    return {}
-
-def jsonld_location(j):
-    loc = j.get("jobLocation")
-    vals = []
-    if isinstance(loc, dict):
-        loc = [loc]
-    if isinstance(loc, list):
-        for x in loc:
-            if not isinstance(x, dict): continue
-            a = x.get("address") or {}
-            if isinstance(a, dict):
-                s = ", ".join([str(a.get(k) or "").strip() for k in
-                               ("addressLocality","addressRegion","addressCountry") if a.get(k)])
-                if s: vals.append(s)
-    if not vals and str(j.get("jobLocationType","")).upper() == "TELECOMMUTE":
-        vals.append("Remote")
-    return " · ".join(vals)
-
-def page_metadata(url, search_row):
-    try:
-        r = S.get(url, timeout=30, allow_redirects=True)
-        r.raise_for_status()
         final = canonical_url(r.url)
-        if not is_direct_ats(final):
-            return None
+
+        if is_direct_ats(final):
+            return final
+
         soup = BeautifulSoup(r.text, "html.parser")
-        j = first_jsonld_job(soup)
 
-        title = clean(j.get("title")) if j else ""
-        company = ""
-        if j:
-            org = j.get("hiringOrganization") or {}
-            if isinstance(org, dict):
-                company = clean(org.get("name"))
-        location = jsonld_location(j) if j else ""
-        posted = clean(j.get("datePosted"))[:10] if j and j.get("datePosted") else None
-        description = clean(BeautifulSoup(str(j.get("description") or ""), "html.parser").get_text(" ")) if j else ""
+        possible_canonical = [
+            soup.find("link", rel="canonical"),
+            soup.find("meta", attrs={"property": "og:url"}),
+        ]
 
-        # Fallbacks from page / search result.
-        if not title:
-            og = soup.find("meta", attrs={"property":"og:title"})
-            title = clean(og.get("content")) if og else clean(search_row.get("title"))
-        if not company:
-            # infer company from ATS path
-            parts = [x for x in urllib.parse.urlparse(final).path.split("/") if x]
-            company = clean(parts[0].replace("-", " ").replace("_"," ")) if parts else ""
-        if not description:
-            md = soup.find("meta", attrs={"name":"description"})
-            description = clean(md.get("content")) if md else clean(search_row.get("snippet"))
-        if not location:
-            location = clean(search_row.get("snippet"))
+        for tag in possible_canonical:
+            if not tag:
+                continue
 
-        return {
-            "url": final, "title": title, "company": company.title() if company else "Unknown company",
-            "location": location, "posted_date": posted, "description": description,
-            "source_type": source_type(final),
-        }
+            candidate = tag.get("href") or tag.get("content")
+
+            if candidate:
+                candidate = canonical_url(
+                    urllib.parse.urljoin(final, candidate)
+                )
+
+                if is_direct_ats(candidate):
+                    return candidate
+
+        for a in soup.find_all("a", href=True):
+            u = canonical_url(
+                urllib.parse.urljoin(final, a["href"])
+            )
+
+            if is_direct_ats(u):
+                return u
+
+    except Exception:
+        pass
+
+    return None
+
+
+def resolve_direct_ats(company, title, provider_url):
+    direct = direct_from_page(provider_url)
+
+    if direct:
+        return direct
+
+    for domain in DIRECT_ATS_HOSTS:
+        q = f'site:{domain} "{company}" "{title}"'
+
+        for row in bing_search(q, 8):
+            u = canonical_url(row["url"])
+
+            if not is_direct_ats(u):
+                continue
+
+            blob = norm(
+                row["title"]
+                + " "
+                + row["snippet"]
+            )
+
+            company_tokens = [
+                x
+                for x in re.split(r"\W+", norm(company))
+                if len(x) >= 3
+            ]
+
+            title_tokens = [
+                x
+                for x in re.split(r"\W+", norm(title))
+                if len(x) >= 4
+            ]
+
+            comp_ok = (
+                not company_tokens
+                or any(
+                    x in blob
+                    for x in company_tokens[:3]
+                )
+            )
+
+            title_ok = (
+                not title_tokens
+                or any(
+                    x in blob
+                    for x in title_tokens[:4]
+                )
+            )
+
+            if comp_ok and title_ok:
+                return u
+
+    return None
+
+
+def jobicy(cfg):
+    seen = set()
+
+    for title in cfg["titles"]:
+        try:
+            r = S.get(
+                "https://jobicy.com/api/v2/remote-jobs",
+                params={
+                    "count": 200,
+                    "geo": "usa",
+                    "tag": title,
+                },
+                timeout=25,
+            )
+
+            r.raise_for_status()
+
+            for j in r.json().get("jobs", []):
+                jid = str(j.get("id") or "")
+
+                if jid in seen:
+                    continue
+
+                seen.add(jid)
+
+                yield {
+                    "provider": "jobicy",
+                    "company": j.get("companyName") or "",
+                    "title": j.get("jobTitle") or "",
+                    "url": j.get("url") or "",
+                    "location": j.get("jobGeo") or "Remote",
+                    "posted_date": (
+                        str(j.get("pubDate") or "")[:10]
+                        or None
+                    ),
+                    "description": clean(
+                        j.get("jobDescription")
+                        or j.get("jobExcerpt")
+                        or ""
+                    ),
+                }
+
+        except Exception as e:
+            print(
+                "Jobicy error for",
+                title,
+                ":",
+                e,
+            )
+
+
+def remotive(cfg):
+    try:
+        r = S.get(
+            "https://remotive.com/api/remote-jobs",
+            timeout=25,
+        )
+
+        r.raise_for_status()
+
+        for j in r.json().get("jobs", []):
+            yield {
+                "provider": "remotive",
+                "company": j.get("company_name") or "",
+                "title": j.get("title") or "",
+                "url": j.get("url") or "",
+                "location": (
+                    j.get("candidate_required_location")
+                    or "Remote"
+                ),
+                "posted_date": (
+                    str(j.get("publication_date") or "")[:10]
+                    or None
+                ),
+                "description": clean(
+                    j.get("description") or ""
+                ),
+            }
+
     except Exception as e:
-        print("  Page parse error:", url, e)
-        return None
+        print("Remotive error:", e)
+
+
+def remoteok(cfg):
+    try:
+        r = S.get(
+            "https://remoteok.com/api",
+            timeout=25,
+        )
+
+        r.raise_for_status()
+
+        data = r.json()
+
+        if (
+            isinstance(data, list)
+            and data
+            and not data[0].get("position")
+        ):
+            data = data[1:]
+
+        for j in data if isinstance(data, list) else []:
+            yield {
+                "provider": "remoteok",
+                "company": j.get("company") or "",
+                "title": j.get("position") or "",
+                "url": (
+                    j.get("url")
+                    or j.get("apply_url")
+                    or ""
+                ),
+                "location": (
+                    j.get("location")
+                    or "Remote"
+                ),
+                "posted_date": (
+                    str(j.get("date") or "")[:10]
+                    or None
+                ),
+                "description": clean(
+                    j.get("description") or ""
+                ),
+            }
+
+    except Exception as e:
+        print("RemoteOK error:", e)
+
 
 def existing_keys():
-    headers={"apikey":SUPABASE_KEY,"Authorization":f"Bearer {SUPABASE_KEY}"}
-    params={"select":"source_key","user_id":f"eq.{USER_ID}","source_key":"not.is.null","limit":"10000"}
-    r=S.get(f"{SUPABASE_URL}/rest/v1/discovered_jobs",headers=headers,params=params,timeout=30)
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": (
+            f"Bearer {SUPABASE_KEY}"
+        ),
+    }
+
+    params = {
+        "select": "source_key",
+        "user_id": f"eq.{USER_ID}",
+        "source_key": "not.is.null",
+        "limit": "10000",
+    }
+
+    r = S.get(
+        f"{SUPABASE_URL}/rest/v1/discovered_jobs",
+        headers=headers,
+        params=params,
+        timeout=30,
+    )
+
     r.raise_for_status()
-    return {x["source_key"] for x in r.json() if x.get("source_key")}
+
+    return {
+        x["source_key"]
+        for x in r.json()
+        if x.get("source_key")
+    }
+
 
 def insert(rows):
     if not rows:
         return
-    headers={
-        "apikey":SUPABASE_KEY,
-        "Authorization":f"Bearer {SUPABASE_KEY}",
-        "Content-Type":"application/json",
-        "Prefer":"return=minimal,resolution=ignore-duplicates",
+
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": (
+            f"Bearer {SUPABASE_KEY}"
+        ),
+        "Content-Type": "application/json",
+        "Prefer": (
+            "return=minimal,"
+            "resolution=ignore-duplicates"
+        ),
     }
+
     for i in range(0, len(rows), 100):
-        r=S.post(f"{SUPABASE_URL}/rest/v1/discovered_jobs",
-                 headers=headers, data=json.dumps(rows[i:i+100]), timeout=30)
+        r = S.post(
+            f"{SUPABASE_URL}/rest/v1/discovered_jobs",
+            headers=headers,
+            data=json.dumps(
+                rows[i:i + 100]
+            ),
+            timeout=30,
+        )
+
         if r.status_code >= 300:
-            raise RuntimeError(f"Supabase insert failed {r.status_code}: {r.text}")
+            raise RuntimeError(
+                "Supabase insert failed "
+                f"{r.status_code}: {r.text}"
+            )
+
 
 def main():
     cfg = load_config()
     known = existing_keys()
-    search_rows = search_direct_jobs(cfg)
-    print(f"Found {len(search_rows)} unique direct ATS URLs from web search.")
 
-    inserts = []
-    skipped_title = 0
-    skipped_loc = 0
+    providers = []
 
-    for sr in search_rows:
-        meta = page_metadata(sr["url"], sr)
-        if not meta:
-            continue
-        if not title_matches(meta["title"], cfg):
-            skipped_title += 1
-            continue
-        if not location_matches(meta["location"], cfg):
-            skipped_loc += 1
+    providers.extend(
+        list(jobicy(cfg))
+    )
+
+    providers.extend(
+        list(remotive(cfg))
+    )
+
+    providers.extend(
+        list(remoteok(cfg))
+    )
+
+    candidates = {}
+
+    for j in providers:
+        if not title_matches(
+            j["title"],
+            cfg,
+        ):
             continue
 
-        k = key_for(meta["url"])
+        if not location_matches(
+            j["location"],
+            cfg,
+        ):
+            continue
+
+        k = (
+            norm(j["company"]),
+            norm(j["title"]),
+        )
+
+        candidates[k] = j
+
+    print(
+        "Candidate jobs after "
+        "title/location filtering:",
+        len(candidates),
+    )
+
+    rows = []
+    unresolved = 0
+    resolved = 0
+
+    for j in candidates.values():
+        direct = resolve_direct_ats(
+            j["company"],
+            j["title"],
+            j["url"],
+        )
+
+        if not direct:
+            unresolved += 1
+
+            print(
+                "UNRESOLVED:",
+                j["company"],
+                "|",
+                j["title"],
+            )
+
+            continue
+
+        k = key_for(direct)
+
         if k in known:
             continue
 
-        inserts.append({
+        rows.append({
             "user_id": USER_ID,
-            "company": meta["company"],
-            "role": meta["title"],
-            "job_url": meta["url"],
-            "posted_date": meta["posted_date"],
-            "location": meta["location"] or None,
-            "work_arrangement": "Remote" if "remote" in norm(meta["location"]) else None,
-            "source_site": f"{meta['company']} Careers · {meta['source_type'].title()}",
-            "description": meta["description"] or None,
-            "external_job_id": meta["url"].rstrip("/").split("/")[-1],
-            "source_type": meta["source_type"],
+            "company": (
+                j["company"]
+                or "Unknown company"
+            ),
+            "role": j["title"],
+            "job_url": direct,
+            "posted_date": (
+                j["posted_date"]
+            ),
+            "location": (
+                j["location"]
+                or None
+            ),
+            "work_arrangement": (
+                "Remote"
+                if "remote" in norm(
+                    j["location"]
+                )
+                else None
+            ),
+            "source_site": (
+                f"{j['company']} Careers · "
+                f"{source_type(direct).title()}"
+            ),
+            "description": (
+                j["description"]
+                or None
+            ),
+            "external_job_id": (
+                direct
+                .rstrip("/")
+                .split("/")[-1]
+            ),
+            "source_type": (
+                source_type(direct)
+            ),
             "source_key": k,
             "decision": "new",
-            "first_seen_at": datetime.now(timezone.utc).isoformat(),
-            "last_seen_at": datetime.now(timezone.utc).isoformat(),
+            "first_seen_at": (
+                datetime.now(
+                    timezone.utc
+                ).isoformat()
+            ),
+            "last_seen_at": (
+                datetime.now(
+                    timezone.utc
+                ).isoformat()
+            ),
         })
-        known.add(k)
 
-    insert(inserts)
-    print(f"Inserted {len(inserts)} new direct-company/ATS jobs.")
-    print(f"Filtered out {skipped_title} title mismatches and {skipped_loc} non-US/location mismatches.")
+        known.add(k)
+        resolved += 1
+
+        print(
+            "RESOLVED:",
+            j["company"],
+            "|",
+            j["title"],
+            "->",
+            direct,
+        )
+
+    insert(rows)
+
+    print(
+        f"Resolved {resolved} "
+        "direct ATS postings."
+    )
+
+    print(
+        f"Unresolved {unresolved} "
+        "candidates were skipped."
+    )
+
+    print(
+        f"Inserted {len(rows)} new "
+        "direct-company/ATS jobs."
+    )
+
 
 if __name__ == "__main__":
     main()
