@@ -26,545 +26,99 @@
   --red-soft: #fef2f2;
 }
 
-* {
-  box-sizing: border-box;
-}
-
+* { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--text);
 }
-
-.hidden {
-  display: none !important;
-}
-
-.wrap {
-  max-width: 1450px;
-  margin: auto;
-  padding: 32px 24px 60px;
-}
-
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
-  margin-bottom: 18px;
-}
-
-h1 {
-  margin: 0;
-  font-size: 32px;
-}
-
-.subtitle,
-.muted,
-.userline {
-  color: var(--muted);
-}
-
-.subtitle {
-  margin: 7px 0 0;
-}
-
-.userline {
-  font-size: 13px;
-  margin-top: 6px;
-}
-
-button {
-  border: 0;
-  border-radius: 10px;
-  padding: 11px 16px;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.primary {
-  background: #111827;
-  color: #fff;
-}
-
-.secondary {
-  background: #fff;
-  border: 1px solid var(--border);
-  color: var(--text);
-}
-
-.danger {
-  background: var(--red-soft);
-  color: var(--red);
-}
-
-.success {
-  background: var(--green-soft);
-  color: #065f46;
-}
-
-.actions,
-.tabs,
-.row-actions,
-.quick-reasons,
-.notes-toolbar {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-input,
-select,
-textarea {
-  width: 100%;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  border-radius: 9px;
-  padding: 10px 11px;
-  font: inherit;
-}
-
-textarea {
-  min-height: 90px;
-  resize: vertical;
-}
-
-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.auth-shell {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-
-.auth-card {
-  width: min(430px, 100%);
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 28px;
-  box-shadow: 0 18px 50px rgba(0,0,0,.08);
-}
-
-.stack {
-  display: grid;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.auth-msg {
-  font-size: 13px;
-  margin-top: 12px;
-  min-height: 18px;
-}
-
-.tabs {
-  margin-bottom: 20px;
-}
-
-.tab {
-  background: #fff;
-  border: 1px solid var(--border);
-  color: #4b5563;
-}
-
-.tab.active {
-  background: #111827;
-  color: #fff;
-}
-
-.activity-shell {
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  padding: 18px;
-  margin-bottom: 22px;
-}
-
-.activity-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-
-.activity-head h2 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.activity-head p {
-  margin: 5px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.activity-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-}
-
-.activity-card {
-  border-radius: 18px;
-  padding: 17px;
-  border: 1px solid var(--border);
-  min-height: 142px;
-  cursor: pointer;
-}
-
-.apps {
-  background: linear-gradient(135deg, var(--blue-soft), #fff);
-}
-
-.screens {
-  background: linear-gradient(135deg, var(--purple-soft), #fff);
-}
-
-.interviews {
-  background: linear-gradient(135deg, var(--orange-soft), #fff);
-}
-
-.activity-kicker {
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: #475569;
-}
-
-.activity-values {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.period-value {
-  background: rgba(255,255,255,.75);
-  border: 1px solid #fff;
-  border-radius: 13px;
-  padding: 10px;
-}
-
-.period-value strong {
-  display: block;
-  font-size: 27px;
-}
-
-.period-value span,
-.activity-foot {
-  font-size: 11px;
-  color: #64748b;
-}
-
-.activity-foot {
-  margin-top: 10px;
-}
-
-.stats {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 14px;
-  margin-bottom: 22px;
-}
-
-.stat {
-  background: #fff;
-  border: 1px solid var(--border);
-  padding: 18px;
-  border-radius: 14px;
-  cursor: pointer;
-  transition: .18s;
-}
-
-.stat:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(15,23,42,.08);
-}
-
-.stat .n {
-  font-size: 29px;
-  font-weight: 750;
-}
-
-.stat .label {
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 3px;
-}
-
-.toolbar {
-  display: grid;
-  grid-template-columns: 2fr repeat(4, 1fr);
-  gap: 10px;
-  background: #fff;
-  border: 1px solid var(--border);
-  padding: 14px;
-  border-radius: 14px 14px 0 0;
-}
-
-.table-wrap {
-  overflow: auto;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-top: 0;
-  border-radius: 0 0 14px 14px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 1300px;
-}
-
-th {
-  position: sticky;
-  top: 0;
-  background: #fafafa;
-  color: #4b5563;
-  text-align: left;
-  font-size: 12px;
-  padding: 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-td {
-  padding: 13px 12px;
-  border-bottom: 1px solid #f0f1f3;
-  vertical-align: top;
-  font-size: 14px;
-}
-
-.company {
-  font-weight: 750;
-}
-
-.role {
-  color: #374151;
-  margin-top: 2px;
-}
-
-.pill {
-  display: inline-flex;
-  padding: 5px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 650;
-  background: #f3f4f6;
-}
-
-.link {
-  color: var(--blue);
-  text-decoration: none;
-}
-
-.empty {
-  text-align: center;
-  padding: 48px 20px;
-  color: var(--muted);
-}
-
-.notice {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  padding: 14px 16px;
-  border-radius: 12px;
-  margin-bottom: 18px;
-}
-
-.discovery-head {
-  margin-bottom: 14px;
-}
-
-.discovery-head h2 {
-  margin: 0;
-}
-
-.discovery-head p {
-  margin: 5px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.discovery-stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.disc-stat {
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 15px;
-}
-
-.disc-stat strong {
-  font-size: 24px;
-  display: block;
-}
-
-.disc-stat span {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.match {
-  font-weight: 800;
-}
-
-.high {
-  color: #047857;
-}
-
-.mid {
-  color: #b45309;
-}
-
-.low {
-  color: #b91c1c;
-}
-
-dialog {
-  border: 0;
-  border-radius: 18px;
-  width: min(880px, calc(100vw - 28px));
-  padding: 0;
-  box-shadow: 0 25px 80px rgba(0,0,0,.2);
-}
-
-dialog::backdrop {
-  background: rgba(17,24,39,.45);
-}
-
-.modal-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 22px;
-  border-bottom: 1px solid var(--border);
-}
-
-.modal-head h2 {
-  margin: 0;
-  font-size: 22px;
-}
-
-.modal-body {
-  padding: 22px;
-}
-
-.modal-foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 9px;
-  padding: 16px 22px 22px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-}
-
-.full {
-  grid-column: 1 / -1;
-}
-
-.choice-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.quick-reasons {
-  margin-top: 8px;
-}
-
-.quick-reasons button {
-  padding: 7px 10px;
-  background: #fff;
-  border: 1px solid var(--border);
-  font-size: 12px;
-}
-
-.quick-reasons button.selected {
-  background: #111827;
-  color: #fff;
-}
-
-.insight-summary {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.insight-box {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px;
-  background: #fafafa;
-}
-
-.insight-box .k {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.insight-box .v {
-  font-size: 22px;
-  font-weight: 800;
-  margin-top: 4px;
-}
-
-.activity-detail-list {
-  display: grid;
-  gap: 8px;
-}
-
-.activity-detail-row {
-  border: 1px solid var(--border);
-  border-radius: 13px;
-  padding: 12px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  background: #fff;
-}
-
-.activity-detail-row .title {
-  font-weight: 800;
-}
-
-.activity-detail-row .sub {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 3px;
-}
-
-.activity-detail-row .date {
-  font-weight: 750;
-}
+.hidden { display: none !important; }
+.wrap { max-width: 1450px; margin: auto; padding: 32px 24px 60px; }
+.topbar { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; margin-bottom: 18px; }
+h1 { margin: 0; font-size: 32px; }
+.subtitle, .muted, .userline { color: var(--muted); }
+.subtitle { margin: 7px 0 0; }
+.userline { font-size: 13px; margin-top: 6px; }
+button { border: 0; border-radius: 10px; padding: 11px 16px; font-weight: 650; cursor: pointer; }
+.primary { background: #111827; color: #fff; }
+.secondary { background: #fff; border: 1px solid var(--border); color: var(--text); }
+.danger { background: var(--red-soft); color: var(--red); }
+.success { background: var(--green-soft); color: #065f46; }
+.actions, .tabs, .row-actions, .quick-reasons, .notes-toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+input, select, textarea { width: 100%; border: 1px solid #d1d5db; background: #fff; border-radius: 9px; padding: 10px 11px; font: inherit; }
+textarea { min-height: 90px; resize: vertical; }
+label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.auth-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.auth-card { width: min(430px, 100%); background: #fff; border: 1px solid var(--border); border-radius: 18px; padding: 28px; box-shadow: 0 18px 50px rgba(0,0,0,.08); }
+.stack { display: grid; gap: 12px; margin-top: 20px; }
+.auth-msg { font-size: 13px; margin-top: 12px; min-height: 18px; }
+.tabs { margin-bottom: 20px; }
+.tab { background: #fff; border: 1px solid var(--border); color: #4b5563; }
+.tab.active { background: #111827; color: #fff; }
+.activity-shell { background: #fff; border: 1px solid var(--border); border-radius: 22px; padding: 18px; margin-bottom: 22px; }
+.activity-head { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.activity-head h2 { margin: 0; font-size: 20px; }
+.activity-head p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.activity-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.activity-card { border-radius: 18px; padding: 17px; border: 1px solid var(--border); min-height: 142px; cursor: pointer; }
+.apps { background: linear-gradient(135deg, var(--blue-soft), #fff); }
+.screens { background: linear-gradient(135deg, var(--purple-soft), #fff); }
+.interviews { background: linear-gradient(135deg, var(--orange-soft), #fff); }
+.activity-kicker { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #475569; }
+.activity-values { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.period-value { background: rgba(255,255,255,.75); border: 1px solid #fff; border-radius: 13px; padding: 10px; }
+.period-value strong { display: block; font-size: 27px; }
+.period-value span, .activity-foot { font-size: 11px; color: #64748b; }
+.activity-foot { margin-top: 10px; }
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 22px; }
+.stat { background: #fff; border: 1px solid var(--border); padding: 18px; border-radius: 14px; cursor: pointer; transition: .18s; }
+.stat:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15,23,42,.08); }
+.stat .n { font-size: 29px; font-weight: 750; }
+.stat .label { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.toolbar { display: grid; grid-template-columns: 2fr repeat(4, 1fr); gap: 10px; background: #fff; border: 1px solid var(--border); padding: 14px; border-radius: 14px 14px 0 0; }
+.table-wrap { overflow: auto; background: #fff; border: 1px solid var(--border); border-top: 0; border-radius: 0 0 14px 14px; }
+table { width: 100%; border-collapse: collapse; min-width: 1300px; }
+th { position: sticky; top: 0; background: #fafafa; color: #4b5563; text-align: left; font-size: 12px; padding: 12px; border-bottom: 1px solid var(--border); }
+td { padding: 13px 12px; border-bottom: 1px solid #f0f1f3; vertical-align: top; font-size: 14px; }
+.company { font-weight: 750; }
+.role { color: #374151; margin-top: 2px; }
+.pill { display: inline-flex; padding: 5px 8px; border-radius: 999px; font-size: 12px; font-weight: 650; background: #f3f4f6; }
+.link { color: var(--blue); text-decoration: none; }
+.empty { text-align: center; padding: 48px 20px; color: var(--muted); }
+.notice { background: #fffbeb; border: 1px solid #fde68a; padding: 14px 16px; border-radius: 12px; margin-bottom: 18px; }
+.discovery-head { margin-bottom: 14px; }
+.discovery-head h2 { margin: 0; }
+.discovery-head p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.discovery-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.disc-stat { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 15px; }
+.disc-stat strong { font-size: 24px; display: block; }
+.disc-stat span { font-size: 12px; color: var(--muted); }
+.match { font-weight: 800; }
+.high { color: #047857; }
+.mid { color: #b45309; }
+.low { color: #b91c1c; }
+dialog { border: 0; border-radius: 18px; width: min(880px, calc(100vw - 28px)); padding: 0; box-shadow: 0 25px 80px rgba(0,0,0,.2); }
+dialog::backdrop { background: rgba(17,24,39,.45); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 22px; border-bottom: 1px solid var(--border); }
+.modal-head h2 { margin: 0; font-size: 22px; }
+.modal-body { padding: 22px; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 9px; padding: 16px 22px 22px; }
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+.full { grid-column: 1 / -1; }
+.choice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.quick-reasons { margin-top: 8px; }
+.quick-reasons button { padding: 7px 10px; background: #fff; border: 1px solid var(--border); font-size: 12px; }
+.quick-reasons button.selected { background: #111827; color: #fff; }
+.insight-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.insight-box { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: #fafafa; }
+.insight-box .k { font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+.insight-box .v { font-size: 22px; font-weight: 800; margin-top: 4px; }
+.activity-detail-list { display: grid; gap: 8px; }
+.activity-detail-row { border: 1px solid var(--border); border-radius: 13px; padding: 12px; display: grid; grid-template-columns: 1fr auto; gap: 12px; background: #fff; }
+.activity-detail-row .title { font-weight: 800; }
+.activity-detail-row .sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.activity-detail-row .date { font-weight: 750; }
 
 .notes-wrap {
   border: 1px solid #d1d5db;
@@ -589,7 +143,7 @@ dialog::backdrop {
 
 .notes-editor {
   min-height: 160px;
-  padding: 12px;
+  padding: 12px 18px;
   outline: none;
   line-height: 1.5;
 }
@@ -599,26 +153,28 @@ dialog::backdrop {
   color: #9ca3af;
 }
 
+.notes-editor ul,
+.notes-editor ol {
+  margin: .4em 0;
+  padding-left: 2.25em;
+}
+
+.notes-editor ul ul,
+.notes-editor ol ol,
+.notes-editor ul ol,
+.notes-editor ol ul {
+  padding-left: 2.25em;
+}
+
+.notes-editor li {
+  margin: .18em 0;
+}
+
 @media (max-width: 900px) {
-  .stats,
-  .discovery-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .activity-grid,
-  .toolbar,
-  .grid,
-  .choice-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .topbar {
-    flex-direction: column;
-  }
-
-  .full {
-    grid-column: auto;
-  }
+  .stats, .discovery-stats { grid-template-columns: repeat(2, 1fr); }
+  .activity-grid, .toolbar, .grid, .choice-grid { grid-template-columns: 1fr; }
+  .topbar { flex-direction: column; }
+  .full { grid-column: auto; }
 }
 </style>
 </head>
@@ -627,15 +183,10 @@ dialog::backdrop {
 
 <div id="authView" class="auth-shell">
   <div class="auth-card">
-
     <h1>Job Search Tracker</h1>
-
-    <p class="muted">
-      Sign in to access the same job data on every device.
-    </p>
+    <p class="muted">Sign in to access the same job data on every device.</p>
 
     <div class="stack">
-
       <div>
         <label>Email</label>
         <input id="authEmail" type="email">
@@ -646,14 +197,8 @@ dialog::backdrop {
         <input id="authPassword" type="password">
       </div>
 
-      <button class="primary" id="signInBtn">
-        Sign In
-      </button>
-
-      <button class="secondary" id="signUpBtn">
-        Create Account
-      </button>
-
+      <button class="primary" id="signInBtn">Sign In</button>
+      <button class="secondary" id="signUpBtn">Create Account</button>
     </div>
 
     <div id="authMsg" class="auth-msg muted"></div>
@@ -664,24 +209,14 @@ dialog::backdrop {
 <div id="appView" class="wrap hidden">
 
   <div class="topbar">
-
     <div>
-
       <h1>Job Search Tracker</h1>
-
-      <p class="subtitle">
-        Discover, review, apply, and track — without double entry.
-      </p>
-
+      <p class="subtitle">Discover, review, apply, and track — without double entry.</p>
       <div id="userEmail" class="userline"></div>
-
     </div>
 
     <div class="actions">
-
-      <button class="secondary" id="importBtn">
-        Import CSV
-      </button>
+      <button class="secondary" id="importBtn">Import CSV</button>
 
       <input
         id="csvFileInput"
@@ -690,25 +225,14 @@ dialog::backdrop {
         accept=".csv,text/csv"
       >
 
-      <button class="secondary" id="exportBtn">
-        Export CSV
-      </button>
-
-      <button class="secondary" id="signOutBtn">
-        Sign Out
-      </button>
-
-      <button class="primary" id="addJobBtn">
-        + Add Job
-      </button>
-
+      <button class="secondary" id="exportBtn">Export CSV</button>
+      <button class="secondary" id="signOutBtn">Sign Out</button>
+      <button class="primary" id="addJobBtn">+ Add Job</button>
     </div>
-
   </div>
 
 
   <div class="tabs">
-
     <button id="tabTracker" class="tab active">
       Application Tracker
     </button>
@@ -717,7 +241,6 @@ dialog::backdrop {
       Job Discovery
       <span id="newDiscoveryBadge"></span>
     </button>
-
   </div>
 
 
@@ -726,17 +249,12 @@ dialog::backdrop {
     <section class="activity-shell">
 
       <div class="activity-head">
-
         <div>
-
           <h2>Job search activity</h2>
-
           <p id="activityPeriodLabel">
             Your week and month update automatically.
           </p>
-
         </div>
-
       </div>
 
 
@@ -853,7 +371,6 @@ dialog::backdrop {
         role="button"
         tabindex="0"
       >
-
         <div class="n" id="totalCount">
           0
         </div>
@@ -861,7 +378,6 @@ dialog::backdrop {
         <div class="label">
           Total opportunities
         </div>
-
       </div>
 
 
@@ -871,7 +387,6 @@ dialog::backdrop {
         role="button"
         tabindex="0"
       >
-
         <div class="n" id="appliedCount">
           0
         </div>
@@ -879,7 +394,6 @@ dialog::backdrop {
         <div class="label">
           Applications submitted
         </div>
-
       </div>
 
 
@@ -889,7 +403,6 @@ dialog::backdrop {
         role="button"
         tabindex="0"
       >
-
         <div class="n" id="sourcedCount">
           0
         </div>
@@ -897,7 +410,6 @@ dialog::backdrop {
         <div class="label">
           Recruiter sourced
         </div>
-
       </div>
 
 
@@ -907,7 +419,6 @@ dialog::backdrop {
         role="button"
         tabindex="0"
       >
-
         <div class="n" id="interviewCount">
           0
         </div>
@@ -915,7 +426,6 @@ dialog::backdrop {
         <div class="label">
           Currently interviewing
         </div>
-
       </div>
 
 
@@ -925,7 +435,6 @@ dialog::backdrop {
         role="button"
         tabindex="0"
       >
-
         <div class="n" id="responseRate">
           0%
         </div>
@@ -933,7 +442,6 @@ dialog::backdrop {
         <div class="label">
           Response rate
         </div>
-
       </div>
 
     </section>
@@ -949,11 +457,7 @@ dialog::backdrop {
         >
 
         <select id="statusFilter">
-
-          <option value="">
-            All statuses
-          </option>
-
+          <option value="">All statuses</option>
           <option>Interested</option>
           <option>Applied</option>
           <option>Recruiter Screen</option>
@@ -963,51 +467,25 @@ dialog::backdrop {
           <option>Rejected</option>
           <option>Withdrawn</option>
           <option>Ghosted</option>
-
         </select>
 
         <select id="sourceFilter">
-
-          <option value="">
-            All sources
-          </option>
-
+          <option value="">All sources</option>
           <option>Applied</option>
           <option>Recruiter Sourced</option>
           <option>Referral</option>
-
         </select>
 
         <select id="responseFilter">
-
-          <option value="">
-            Any response
-          </option>
-
-          <option value="Yes">
-            Heard back
-          </option>
-
-          <option value="No">
-            No response
-          </option>
-
+          <option value="">Any response</option>
+          <option value="Yes">Heard back</option>
+          <option value="No">No response</option>
         </select>
 
         <select id="trackerSort">
-
-          <option value="newest">
-            Newest applied
-          </option>
-
-          <option value="oldest">
-            Oldest applied
-          </option>
-
-          <option value="company">
-            Company A–Z
-          </option>
-
+          <option value="newest">Newest applied</option>
+          <option value="oldest">Oldest applied</option>
+          <option value="company">Company A–Z</option>
         </select>
 
       </div>
@@ -1016,11 +494,8 @@ dialog::backdrop {
       <div class="table-wrap">
 
         <table>
-
           <thead>
-
             <tr>
-
               <th>Company / Role</th>
               <th>Status</th>
               <th>Source</th>
@@ -1034,13 +509,10 @@ dialog::backdrop {
               <th>Location</th>
               <th>Link</th>
               <th>Actions</th>
-
             </tr>
-
           </thead>
 
           <tbody id="jobRows"></tbody>
-
         </table>
 
         <div
@@ -1063,14 +535,12 @@ dialog::backdrop {
   >
 
     <div class="discovery-head">
-
       <h2>Job Discovery</h2>
 
       <p>
         Automatically discovered jobs stay here until you confirm
         you applied or pass on them.
       </p>
-
     </div>
 
 
@@ -1078,7 +548,6 @@ dialog::backdrop {
       id="discoverySetupNotice"
       class="notice hidden"
     >
-
       <strong>
         Discovery database setup needed.
       </strong>
@@ -1086,61 +555,29 @@ dialog::backdrop {
       <br>
 
       Run the Supabase discovery SQL, then refresh.
-
     </div>
 
 
     <div class="discovery-stats">
 
       <div class="disc-stat">
-
-        <strong id="discNew">
-          0
-        </strong>
-
-        <span>
-          New / unreviewed
-        </span>
-
+        <strong id="discNew">0</strong>
+        <span>New / unreviewed</span>
       </div>
 
-
       <div class="disc-stat">
-
-        <strong id="discConsidering">
-          0
-        </strong>
-
-        <span>
-          Considering
-        </span>
-
+        <strong id="discConsidering">0</strong>
+        <span>Considering</span>
       </div>
 
-
       <div class="disc-stat">
-
-        <strong id="discApplied">
-          0
-        </strong>
-
-        <span>
-          Confirmed applied
-        </span>
-
+        <strong id="discApplied">0</strong>
+        <span>Confirmed applied</span>
       </div>
 
-
       <div class="disc-stat">
-
-        <strong id="discPassed">
-          0
-        </strong>
-
-        <span>
-          Passed
-        </span>
-
+        <strong id="discPassed">0</strong>
+        <span>Passed</span>
       </div>
 
     </div>
@@ -1153,111 +590,37 @@ dialog::backdrop {
         placeholder="Search discovered jobs…"
       >
 
-
       <select id="discDecisionFilter">
-
-        <option value="">
-          All decisions
-        </option>
-
-        <option value="new">
-          New
-        </option>
-
-        <option value="considering">
-          Considering
-        </option>
-
-        <option value="applied">
-          Applied
-        </option>
-
-        <option value="passed">
-          Passed
-        </option>
-
+        <option value="">All decisions</option>
+        <option value="new">New</option>
+        <option value="considering">Considering</option>
+        <option value="applied">Applied</option>
+        <option value="passed">Passed</option>
       </select>
-
 
       <select id="discMatchFilter">
-
-        <option value="">
-          All match scores
-        </option>
-
-        <option value="90">
-          90%+
-        </option>
-
-        <option value="80">
-          80%+
-        </option>
-
-        <option value="70">
-          70%+
-        </option>
-
-        <option value="60">
-          60%+
-        </option>
-
+        <option value="">All match scores</option>
+        <option value="90">90%+</option>
+        <option value="80">80%+</option>
+        <option value="70">70%+</option>
+        <option value="60">60%+</option>
       </select>
-
 
       <select id="discAgeFilter">
-
-        <option value="1">
-          Posted: last 24 hours
-        </option>
-
-        <option value="3">
-          Posted: last 3 days
-        </option>
-
-        <option value="7">
-          Posted: last 7 days
-        </option>
-
-        <option value="14">
-          Posted: last 14 days
-        </option>
-
-        <option
-          value="30"
-          selected
-        >
-          Posted: last 30 days
-        </option>
-
-        <option value="">
-          Posted: any age
-        </option>
-
+        <option value="1">Posted: last 24 hours</option>
+        <option value="3">Posted: last 3 days</option>
+        <option value="7">Posted: last 7 days</option>
+        <option value="14">Posted: last 14 days</option>
+        <option value="30" selected>Posted: last 30 days</option>
+        <option value="">Posted: any age</option>
       </select>
 
-
       <select id="discSort">
-
-        <option value="posted_desc">
-          Posted: newest first
-        </option>
-
-        <option value="posted_asc">
-          Posted: oldest first
-        </option>
-
-        <option value="match_desc">
-          Match: highest first
-        </option>
-
-        <option value="match_asc">
-          Match: lowest first
-        </option>
-
-        <option value="company">
-          Company A–Z
-        </option>
-
+        <option value="posted_desc">Posted: newest first</option>
+        <option value="posted_asc">Posted: oldest first</option>
+        <option value="match_desc">Match: highest first</option>
+        <option value="match_asc">Match: lowest first</option>
+        <option value="company">Company A–Z</option>
       </select>
 
     </div>
@@ -1266,11 +629,8 @@ dialog::backdrop {
     <div class="table-wrap">
 
       <table>
-
         <thead>
-
           <tr>
-
             <th>Company / Role</th>
             <th>Match</th>
             <th>Posted</th>
@@ -1279,13 +639,10 @@ dialog::backdrop {
             <th>Decision</th>
             <th>Why / Notes</th>
             <th>Actions</th>
-
           </tr>
-
         </thead>
 
         <tbody id="discoveryRows"></tbody>
-
       </table>
 
 
@@ -1326,58 +683,40 @@ dialog::backdrop {
 
     <div class="modal-body">
 
-      <input type="hidden" id="editId">
+      <input
+        type="hidden"
+        id="editId"
+      >
 
 
       <div class="grid">
 
         <div>
-
           <label>Company *</label>
-
-          <input
-            id="company"
-            required
-          >
-
+          <input id="company" required>
         </div>
 
-
         <div>
-
           <label>Role / Job Title *</label>
-
-          <input
-            id="role"
-            required
-          >
-
+          <input id="role" required>
         </div>
 
-
         <div>
-
           <label>
             How did this opportunity start?
           </label>
 
           <select id="source">
-
             <option>Applied</option>
             <option>Recruiter Sourced</option>
             <option>Referral</option>
-
           </select>
-
         </div>
 
-
         <div>
-
           <label>Status</label>
 
           <select id="status">
-
             <option>Interested</option>
             <option>Applied</option>
             <option>Recruiter Screen</option>
@@ -1387,14 +726,10 @@ dialog::backdrop {
             <option>Rejected</option>
             <option>Withdrawn</option>
             <option>Ghosted</option>
-
           </select>
-
         </div>
 
-
         <div>
-
           <label>
             Date Applied / Entered Pipeline
           </label>
@@ -1403,12 +738,9 @@ dialog::backdrop {
             id="dateApplied"
             type="date"
           >
-
         </div>
 
-
         <div>
-
           <label>
             Recruiter Screen Date
           </label>
@@ -1417,12 +749,9 @@ dialog::backdrop {
             id="recruiterScreenDate"
             type="date"
           >
-
         </div>
 
-
         <div>
-
           <label>
             Interview Date
           </label>
@@ -1431,28 +760,20 @@ dialog::backdrop {
             id="interviewDate"
             type="date"
           >
-
         </div>
 
-
         <div>
-
           <label>
             Have you heard back?
           </label>
 
           <select id="heardBack">
-
             <option>No</option>
             <option>Yes</option>
-
           </select>
-
         </div>
 
-
         <div>
-
           <label>
             Date You Heard Back
           </label>
@@ -1461,12 +782,9 @@ dialog::backdrop {
             id="dateHeardBack"
             type="date"
           >
-
         </div>
 
-
         <div>
-
           <label>
             Last Contact / Update
           </label>
@@ -1475,121 +793,89 @@ dialog::backdrop {
             id="lastContact"
             type="date"
           >
-
         </div>
 
-
         <div>
-
           <label>Salary Min</label>
 
           <input
             id="salaryMin"
             type="number"
           >
-
         </div>
 
-
         <div>
-
           <label>Salary Max</label>
 
           <input
             id="salaryMax"
             type="number"
           >
-
         </div>
 
-
         <div>
-
           <label>
             Bonus / OTE / Equity
           </label>
 
           <input id="additionalComp">
-
         </div>
 
-
         <div>
-
           <label>
             Recruiter Name
           </label>
 
           <input id="recruiter">
-
         </div>
 
-
         <div>
-
           <label>
             Recruiter Email / Contact
           </label>
 
           <input id="recruiterContact">
-
         </div>
 
-
         <div>
-
           <label>Location</label>
-
           <input id="location">
-
         </div>
 
-
         <div>
-
           <label>
             Work Arrangement
           </label>
 
           <select id="workArrangement">
-
             <option value=""></option>
             <option>Remote</option>
             <option>Hybrid</option>
             <option>On-site</option>
-
           </select>
-
         </div>
 
-
         <div>
-
           <label>Job URL</label>
 
           <input
             id="jobUrl"
             type="url"
           >
-
         </div>
 
-
         <div class="full">
-
           <label>
             Interview Stage / Next Step
           </label>
 
           <input id="nextStep">
-
         </div>
 
 
         <div class="full">
 
           <label>Notes</label>
-
 
           <div class="notes-wrap">
 
@@ -1622,6 +908,7 @@ dialog::backdrop {
               <button
                 type="button"
                 data-cmd="insertUnorderedList"
+                title="Bulleted list"
               >
                 • List
               </button>
@@ -1629,8 +916,25 @@ dialog::backdrop {
               <button
                 type="button"
                 data-cmd="insertOrderedList"
+                title="Numbered list"
               >
                 1. List
+              </button>
+
+              <button
+                type="button"
+                data-cmd="outdent"
+                title="Decrease indent"
+              >
+                ← Indent
+              </button>
+
+              <button
+                type="button"
+                data-cmd="indent"
+                title="Increase indent"
+              >
+                Indent →
               </button>
 
               <button
@@ -1855,6 +1159,7 @@ let discoveredJobs = [];
 let activeDiscoveryJob = null;
 let selectedPassReason = "";
 
+
 const PASS_REASONS = [
   "Salary too low",
   "Location/onsite requirements",
@@ -1868,21 +1173,48 @@ const PASS_REASONS = [
   "Other"
 ];
 
+
 const dbMap = {
-  dateApplied: "date_applied",
-  recruiterScreenDate: "recruiter_screen_date",
-  interviewDate: "interview_date",
-  heardBack: "heard_back",
-  dateHeardBack: "date_heard_back",
-  lastContact: "last_contact",
-  salaryMin: "salary_min",
-  salaryMax: "salary_max",
-  additionalComp: "additional_comp",
-  recruiterContact: "recruiter_contact",
-  workArrangement: "work_arrangement",
-  jobUrl: "job_url",
-  nextStep: "next_step"
+  dateApplied:
+    "date_applied",
+
+  recruiterScreenDate:
+    "recruiter_screen_date",
+
+  interviewDate:
+    "interview_date",
+
+  heardBack:
+    "heard_back",
+
+  dateHeardBack:
+    "date_heard_back",
+
+  lastContact:
+    "last_contact",
+
+  salaryMin:
+    "salary_min",
+
+  salaryMax:
+    "salary_max",
+
+  additionalComp:
+    "additional_comp",
+
+  recruiterContact:
+    "recruiter_contact",
+
+  workArrangement:
+    "work_arrangement",
+
+  jobUrl:
+    "job_url",
+
+  nextStep:
+    "next_step"
 };
+
 
 const fields = [
   "company",
@@ -1906,7 +1238,9 @@ const fields = [
   "nextStep"
 ];
 
+
 function esc(v = "") {
+
   return String(v ?? "")
     .replace(
       /[&<>"']/g,
@@ -1918,9 +1252,12 @@ function esc(v = "") {
         "'": "&#039;"
       })[m]
     );
+
 }
 
+
 function stripHtml(v = "") {
+
   const div =
     document.createElement("div");
 
@@ -1932,9 +1269,12 @@ function stripHtml(v = "") {
     div.innerText ||
     ""
   );
+
 }
 
+
 function fmtDate(v) {
+
   if (!v) {
     return "—";
   }
@@ -1948,9 +1288,12 @@ function fmtDate(v) {
       ? `${p[1]}/${p[2]}/${p[0]}`
       : v
   );
+
 }
 
+
 function money(v) {
+
   return (
     v !== "" &&
     v != null
@@ -1959,9 +1302,12 @@ function money(v) {
       Number(v)
         .toLocaleString()
     : "";
+
 }
 
+
 function todayISO() {
+
   const d =
     new Date();
 
@@ -1974,9 +1320,12 @@ function todayISO() {
   )
     .toISOString()
     .slice(0, 10);
+
 }
 
+
 function parseDate(v) {
+
   if (!v) {
     return null;
   }
@@ -2004,9 +1353,12 @@ function parseDate(v) {
     d,
     12
   );
+
 }
 
+
 function startOfWeek(d) {
+
   const x =
     new Date(
       d.getFullYear(),
@@ -2024,9 +1376,12 @@ function startOfWeek(d) {
   );
 
   return x;
+
 }
 
+
 function endOfWeek(d) {
+
   const x =
     startOfWeek(d);
 
@@ -2035,13 +1390,16 @@ function endOfWeek(d) {
   );
 
   return x;
+
 }
+
 
 function inRange(
   v,
   s,
   e
 ) {
+
   const d =
     parseDate(v);
 
@@ -2050,9 +1408,12 @@ function inRange(
     d >= s &&
     d <= e
   );
+
 }
 
+
 function toDb(obj) {
+
   const out = {};
 
   for (
@@ -2062,83 +1423,172 @@ function toDb(obj) {
     ]
     of Object.entries(obj)
   ) {
+
     out[
       dbMap[k] || k
     ] =
       v === ""
         ? null
         : v;
+
   }
+
 
   if (
     out.salary_min != null
   ) {
+
     out.salary_min =
       Number(
         out.salary_min
       );
+
   }
+
 
   if (
     out.salary_max != null
   ) {
+
     out.salary_max =
       Number(
         out.salary_max
       );
+
   }
 
   return out;
+
 }
+
 
 function fromDb(j) {
+
   return {
-    id: j.id,
-    company: j.company || "",
-    role: j.role || "",
-    source: j.source || "",
-    status: j.status || "",
-    dateApplied: j.date_applied || "",
-    recruiterScreenDate: j.recruiter_screen_date || "",
-    interviewDate: j.interview_date || "",
-    heardBack: j.heard_back || "No",
-    dateHeardBack: j.date_heard_back || "",
-    lastContact: j.last_contact || "",
-    salaryMin: j.salary_min ?? "",
-    salaryMax: j.salary_max ?? "",
-    additionalComp: j.additional_comp || "",
-    recruiter: j.recruiter || "",
-    recruiterContact: j.recruiter_contact || "",
-    location: j.location || "",
-    workArrangement: j.work_arrangement || "",
-    jobUrl: j.job_url || "",
-    nextStep: j.next_step || "",
-    notes: j.notes || ""
+    id:
+      j.id,
+
+    company:
+      j.company || "",
+
+    role:
+      j.role || "",
+
+    source:
+      j.source || "",
+
+    status:
+      j.status || "",
+
+    dateApplied:
+      j.date_applied || "",
+
+    recruiterScreenDate:
+      j.recruiter_screen_date || "",
+
+    interviewDate:
+      j.interview_date || "",
+
+    heardBack:
+      j.heard_back || "No",
+
+    dateHeardBack:
+      j.date_heard_back || "",
+
+    lastContact:
+      j.last_contact || "",
+
+    salaryMin:
+      j.salary_min ?? "",
+
+    salaryMax:
+      j.salary_max ?? "",
+
+    additionalComp:
+      j.additional_comp || "",
+
+    recruiter:
+      j.recruiter || "",
+
+    recruiterContact:
+      j.recruiter_contact || "",
+
+    location:
+      j.location || "",
+
+    workArrangement:
+      j.work_arrangement || "",
+
+    jobUrl:
+      j.job_url || "",
+
+    nextStep:
+      j.next_step || "",
+
+    notes:
+      j.notes || ""
   };
+
 }
+
 
 function fromDiscovery(j) {
+
   return {
-    id: j.id,
-    company: j.company || "",
-    role: j.role || "",
-    jobUrl: j.job_url || "",
-    postedDate: j.posted_date || "",
-    location: j.location || "",
-    workArrangement: j.work_arrangement || "",
-    salaryMin: j.salary_min ?? "",
-    salaryMax: j.salary_max ?? "",
-    matchScore: j.match_score ?? "",
-    sourceSite: j.source_site || "",
-    matchSummary: j.match_summary || "",
-    notes: j.notes || "",
-    decision: j.decision || "new",
-    passReason: j.pass_reason || "",
-    passNote: j.pass_note || ""
+    id:
+      j.id,
+
+    company:
+      j.company || "",
+
+    role:
+      j.role || "",
+
+    jobUrl:
+      j.job_url || "",
+
+    postedDate:
+      j.posted_date || "",
+
+    location:
+      j.location || "",
+
+    workArrangement:
+      j.work_arrangement || "",
+
+    salaryMin:
+      j.salary_min ?? "",
+
+    salaryMax:
+      j.salary_max ?? "",
+
+    matchScore:
+      j.match_score ?? "",
+
+    sourceSite:
+      j.source_site || "",
+
+    matchSummary:
+      j.match_summary || "",
+
+    notes:
+      j.notes || "",
+
+    decision:
+      j.decision || "new",
+
+    passReason:
+      j.pass_reason || "",
+
+    passNote:
+      j.pass_note || ""
   };
+
 }
 
+
 function comp(j) {
+
   const lo =
     money(
       j.salaryMin
@@ -2160,11 +1610,14 @@ function comp(j) {
         ? `Up to ${hi}`
         : j.additionalComp ||
           "—";
+
 }
+
 
 async function enterApp(
   user
 ) {
+
   currentUser =
     user;
 
@@ -2196,9 +1649,12 @@ async function enterApp(
       : "tracker",
     false
   );
+
 }
 
+
 async function loadJobs() {
+
   const {
     data,
     error
@@ -2218,12 +1674,14 @@ async function loadJobs() {
       );
 
   if (error) {
+
     alert(
       "Could not load jobs: " +
       error.message
     );
 
     return;
+
   }
 
   jobs =
@@ -2231,9 +1689,12 @@ async function loadJobs() {
       .map(fromDb);
 
   renderTracker();
+
 }
 
+
 async function loadDiscovery() {
+
   const {
     data,
     error
@@ -2255,6 +1716,7 @@ async function loadDiscovery() {
       );
 
   if (error) {
+
     $("discoverySetupNotice")
       .classList
       .remove("hidden");
@@ -2264,6 +1726,7 @@ async function loadDiscovery() {
     renderDiscovery();
 
     return;
+
   }
 
   $("discoverySetupNotice")
@@ -2277,12 +1740,15 @@ async function loadDiscovery() {
       );
 
   renderDiscovery();
+
 }
+
 
 function switchView(
   v,
   save = true
 ) {
+
   $("trackerView")
     .classList
     .toggle(
@@ -2312,20 +1778,27 @@ function switchView(
     );
 
   if (save) {
+
     localStorage.setItem(
       LAST_VIEW_KEY,
       v
     );
+
   }
 
   if (
     v === "discovery"
   ) {
+
     renderDiscovery();
+
   }
+
 }
 
+
 function renderTracker() {
+
   const q =
     $("search")
       .value
@@ -2347,9 +1820,11 @@ function renderTracker() {
     $("trackerSort")
       .value;
 
+
   let rows =
     jobs.filter(
       j => {
+
         const blob =
           [
             j.company,
@@ -2381,8 +1856,10 @@ function renderTracker() {
             j.heardBack === rf
           )
         );
+
       }
     );
+
 
   rows =
     rows
@@ -2392,9 +1869,11 @@ function renderTracker() {
           a,
           b
         ) => {
+
           if (
             sort === "oldest"
           ) {
+
             return String(
               a.dateApplied ||
               "9999"
@@ -2405,16 +1884,21 @@ function renderTracker() {
                   "9999"
                 )
               );
+
           }
+
 
           if (
             sort === "company"
           ) {
+
             return a.company
               .localeCompare(
                 b.company
               );
+
           }
+
 
           return String(
             b.dateApplied ||
@@ -2426,8 +1910,10 @@ function renderTracker() {
                 ""
               )
             );
+
         }
       );
+
 
   $("jobRows")
     .innerHTML =
@@ -2439,49 +1925,69 @@ function renderTracker() {
               <td>
 
                 <div class="company">
-                  ${esc(j.company)}
+                  ${esc(
+                    j.company
+                  )}
                 </div>
 
                 <div class="role">
-                  ${esc(j.role)}
+                  ${esc(
+                    j.role
+                  )}
                 </div>
 
               </td>
 
               <td>
                 <span class="pill">
-                  ${esc(j.status)}
+                  ${esc(
+                    j.status
+                  )}
                 </span>
               </td>
 
               <td>
                 <span class="pill">
-                  ${esc(j.source)}
+                  ${esc(
+                    j.source
+                  )}
                 </span>
               </td>
 
               <td>
-                ${fmtDate(j.dateApplied)}
+                ${fmtDate(
+                  j.dateApplied
+                )}
               </td>
 
               <td>
-                ${fmtDate(j.recruiterScreenDate)}
+                ${fmtDate(
+                  j.recruiterScreenDate
+                )}
               </td>
 
               <td>
-                ${fmtDate(j.interviewDate)}
+                ${fmtDate(
+                  j.interviewDate
+                )}
               </td>
 
               <td>
-                ${esc(j.heardBack)}
+                ${esc(
+                  j.heardBack
+                )}
               </td>
 
               <td>
-                ${fmtDate(j.dateHeardBack)}
+                ${fmtDate(
+                  j.dateHeardBack
+                )}
               </td>
 
               <td>
-                ${esc(comp(j))}
+                ${esc(
+                  comp(j)
+                )}
               </td>
 
               <td>
@@ -2490,13 +1996,17 @@ function renderTracker() {
                   j.recruiter
                     ? `
                       <strong>
-                        ${esc(j.recruiter)}
+                        ${esc(
+                          j.recruiter
+                        )}
                       </strong>
 
                       <br>
 
                       <span class="muted">
-                        ${esc(j.recruiterContact)}
+                        ${esc(
+                          j.recruiterContact
+                        )}
                       </span>
                     `
                     : "—"
@@ -2505,6 +2015,7 @@ function renderTracker() {
               </td>
 
               <td>
+
                 ${esc(
                   [
                     j.location,
@@ -2514,6 +2025,7 @@ function renderTracker() {
                     .join(" • ") ||
                   "—"
                 )}
+
               </td>
 
               <td>
@@ -2523,7 +2035,9 @@ function renderTracker() {
                     ? `
                       <a
                         class="link"
-                        href="${esc(j.jobUrl)}"
+                        href="${esc(
+                          j.jobUrl
+                        )}"
                         target="_blank"
                         rel="noopener"
                       >
@@ -2562,6 +2076,7 @@ function renderTracker() {
         )
         .join("");
 
+
   $("empty")
     .classList
     .toggle(
@@ -2569,11 +2084,15 @@ function renderTracker() {
       !!rows.length
     );
 
+
   updateStats();
   updateActivity();
+
 }
 
+
 function updateStats() {
+
   const total =
     jobs.length;
 
@@ -2615,6 +2134,7 @@ function updateStats() {
     )
       .length;
 
+
   $("totalCount")
     .textContent =
       total;
@@ -2640,9 +2160,12 @@ function updateStats() {
             100
           ) + "%"
         : "0%";
+
 }
 
+
 function updateActivity() {
+
   const now =
     new Date();
 
@@ -2668,6 +2191,7 @@ function updateActivity() {
       12
     );
 
+
   const count =
     (
       field,
@@ -2685,6 +2209,7 @@ function updateActivity() {
           )
       )
         .length;
+
 
   const aw =
     count(
@@ -2734,12 +2259,31 @@ function updateActivity() {
       me
     );
 
-  $("appsWeek").textContent = aw;
-  $("appsMonth").textContent = am;
-  $("screensWeek").textContent = sw;
-  $("screensMonth").textContent = sm;
-  $("interviewsWeek").textContent = iw;
-  $("interviewsMonth").textContent = im;
+
+  $("appsWeek")
+    .textContent =
+      aw;
+
+  $("appsMonth")
+    .textContent =
+      am;
+
+  $("screensWeek")
+    .textContent =
+      sw;
+
+  $("screensMonth")
+    .textContent =
+      sm;
+
+  $("interviewsWeek")
+    .textContent =
+      iw;
+
+  $("interviewsMonth")
+    .textContent =
+      im;
+
 
   $("appsPace")
     .textContent =
@@ -2749,6 +2293,7 @@ function updateActivity() {
           : "s"
       } this month`;
 
+
   $("screensPace")
     .textContent =
       `${sm} recruiter screen${
@@ -2756,6 +2301,7 @@ function updateActivity() {
           ? ""
           : "s"
       } this month`;
+
 
   $("interviewsPace")
     .textContent =
@@ -2765,20 +2311,27 @@ function updateActivity() {
           : "s"
       } this month`;
 
+
   $("activityPeriodLabel")
     .textContent =
       now.toLocaleDateString(
         "en-US",
         {
-          month: "long",
-          year: "numeric"
+          month:
+            "long",
+
+          year:
+            "numeric"
         }
       );
+
 }
+
 
 function openJob(
   id = null
 ) {
+
   $("jobForm")
     .reset();
 
@@ -2790,13 +2343,16 @@ function openJob(
     .innerHTML =
       "";
 
+
   $("modalTitle")
     .textContent =
       id
         ? "Edit Job"
         : "Add Job";
 
+
   if (id) {
+
     const j =
       jobs.find(
         x =>
@@ -2807,23 +2363,32 @@ function openJob(
       return;
     }
 
+
     $("editId")
       .value =
         id;
 
+
     fields.forEach(
       f => {
+
         if ($(f)) {
+
           $(f).value =
             j[f] ?? "";
+
         }
+
       }
     );
+
 
     $("notesEditor")
       .innerHTML =
         j.notes || "";
+
   } else {
+
     $("source")
       .value =
         "Applied";
@@ -2839,15 +2404,20 @@ function openJob(
     $("dateApplied")
       .value =
         todayISO();
+
   }
+
 
   $("jobDialog")
     .showModal();
+
 }
+
 
 async function deleteJob(
   id
 ) {
+
   if (
     !confirm(
       "Delete this job?"
@@ -2855,6 +2425,7 @@ async function deleteJob(
   ) {
     return;
   }
+
 
   const {
     error
@@ -2871,18 +2442,25 @@ async function deleteJob(
         currentUser.id
       );
 
+
   if (error) {
+
     alert(
       error.message
     );
 
     return;
+
   }
 
+
   await loadJobs();
+
 }
 
+
 function discoveryComp(j) {
+
   const lo =
     money(
       j.salaryMin
@@ -2903,9 +2481,12 @@ function discoveryComp(j) {
       : hi
         ? `Up to ${hi}`
         : "—";
+
 }
 
+
 function getDiscoveryBaseRows() {
+
   const q =
     $("discSearch")
       .value
@@ -2928,8 +2509,10 @@ function getDiscoveryBaseRows() {
   const now =
     new Date();
 
+
   return discoveredJobs.filter(
     j => {
+
       const blob =
         [
           j.company,
@@ -2942,12 +2525,14 @@ function getDiscoveryBaseRows() {
           .join(" ")
           .toLowerCase();
 
+
       if (
         q &&
         !blob.includes(q)
       ) {
         return false;
       }
+
 
       if (
         minMatch &&
@@ -2960,45 +2545,53 @@ function getDiscoveryBaseRows() {
         return false;
       }
 
+
       if (
         maxAge
       ) {
+
         if (
           !j.postedDate
         ) {
           return false;
         }
 
+
         const posted =
           parseDate(
             j.postedDate
           );
 
+
         if (!posted) {
           return false;
         }
 
-        const ageDays =
+
+        if (
           (
             now -
             posted
           ) /
-          86400000;
-
-        if (
-          ageDays >
+          86400000 >
           maxAge
         ) {
           return false;
         }
+
       }
 
+
       return true;
+
     }
   );
+
 }
 
+
 function renderDiscovery() {
+
   const decision =
     $("discDecisionFilter")
       .value;
@@ -3010,12 +2603,15 @@ function renderDiscovery() {
   const baseRows =
     getDiscoveryBaseRows();
 
+
   let rows =
     baseRows.filter(
       j =>
         !decision ||
-        j.decision === decision
+        j.decision ===
+        decision
     );
+
 
   rows =
     rows
@@ -3025,10 +2621,12 @@ function renderDiscovery() {
           a,
           b
         ) => {
+
           if (
             sort ===
             "posted_asc"
           ) {
+
             return String(
               a.postedDate ||
               "9999"
@@ -3039,12 +2637,15 @@ function renderDiscovery() {
                   "9999"
                 )
               );
+
           }
+
 
           if (
             sort ===
             "match_desc"
           ) {
+
             return (
               Number(
                 b.matchScore ||
@@ -3055,12 +2656,15 @@ function renderDiscovery() {
                 0
               )
             );
+
           }
+
 
           if (
             sort ===
             "match_asc"
           ) {
+
             return (
               Number(
                 a.matchScore ||
@@ -3071,17 +2675,22 @@ function renderDiscovery() {
                 0
               )
             );
+
           }
+
 
           if (
             sort ===
             "company"
           ) {
+
             return a.company
               .localeCompare(
                 b.company
               );
+
           }
+
 
           return String(
             b.postedDate ||
@@ -3093,8 +2702,10 @@ function renderDiscovery() {
                 ""
               )
             );
+
         }
       );
+
 
   $("discoveryRows")
     .innerHTML =
@@ -3106,15 +2717,21 @@ function renderDiscovery() {
               <td>
 
                 <div class="company">
-                  ${esc(j.company)}
+                  ${esc(
+                    j.company
+                  )}
                 </div>
 
                 <div class="role">
-                  ${esc(j.role)}
+                  ${esc(
+                    j.role
+                  )}
                 </div>
 
                 <div class="muted">
-                  ${esc(j.sourceSite)}
+                  ${esc(
+                    j.sourceSite
+                  )}
                 </div>
 
               </td>
@@ -3137,7 +2754,9 @@ function renderDiscovery() {
                               : "low"
                         }"
                       >
-                        ${esc(j.matchScore)}%
+                        ${esc(
+                          j.matchScore
+                        )}%
                       </span>
                     `
                     : "—"
@@ -3146,10 +2765,13 @@ function renderDiscovery() {
               </td>
 
               <td>
-                ${fmtDate(j.postedDate)}
+                ${fmtDate(
+                  j.postedDate
+                )}
               </td>
 
               <td>
+
                 ${esc(
                   [
                     j.location,
@@ -3159,6 +2781,7 @@ function renderDiscovery() {
                     .join(" • ") ||
                   "—"
                 )}
+
               </td>
 
               <td>
@@ -3168,20 +2791,22 @@ function renderDiscovery() {
               </td>
 
               <td>
-
                 <span class="pill">
-                  ${esc(j.decision)}
+                  ${esc(
+                    j.decision
+                  )}
                 </span>
-
               </td>
 
               <td>
+
                 ${esc(
                   j.matchSummary ||
                   j.passReason ||
                   j.passNote ||
                   "—"
                 )}
+
               </td>
 
               <td>
@@ -3200,6 +2825,7 @@ function renderDiscovery() {
                       `
                       : ""
                   }
+
 
                   ${
                     (
@@ -3220,6 +2846,7 @@ function renderDiscovery() {
                       `
                       : ""
                   }
+
 
                   ${
                     (
@@ -3250,12 +2877,14 @@ function renderDiscovery() {
         )
         .join("");
 
+
   $("discoveryEmpty")
     .classList
     .toggle(
       "hidden",
       !!rows.length
     );
+
 
   const newCount =
     baseRows.filter(
@@ -3289,6 +2918,7 @@ function renderDiscovery() {
     )
       .length;
 
+
   $("discNew")
     .textContent =
       newCount;
@@ -3310,11 +2940,14 @@ function renderDiscovery() {
       newCount
         ? `(${newCount})`
         : "";
+
 }
+
 
 async function setConsidering(
   id
 ) {
+
   const {
     error
   } =
@@ -3335,24 +2968,32 @@ async function setConsidering(
         currentUser.id
       );
 
+
   if (error) {
+
     alert(
       error.message
     );
 
     return;
+
   }
 
+
   await loadDiscovery();
+
 }
 
+
 function prepPassReasons() {
+
   selectedPassReason =
     "";
 
   $("passNote")
     .value =
       "";
+
 
   $("reasonButtons")
     .innerHTML =
@@ -3361,13 +3002,18 @@ function prepPassReasons() {
           reason => `
             <button
               type="button"
-              data-reason="${esc(reason)}"
+              data-reason="${esc(
+                reason
+              )}"
             >
-              ${esc(reason)}
+              ${esc(
+                reason
+              )}
             </button>
           `
         )
         .join("");
+
 
   $("reasonButtons")
     .querySelectorAll(
@@ -3375,11 +3021,14 @@ function prepPassReasons() {
     )
     .forEach(
       button => {
+
         button.addEventListener(
           "click",
           () => {
+
             selectedPassReason =
               button.dataset.reason;
+
 
             $("reasonButtons")
               .querySelectorAll(
@@ -3393,30 +3042,38 @@ function prepPassReasons() {
                     )
               );
 
+
             button.classList
               .add(
                 "selected"
               );
+
           }
         );
+
       }
     );
+
 }
+
 
 function openApply(
   id
 ) {
+
   activeDiscoveryJob =
     discoveredJobs.find(
       j =>
         j.id === id
     );
 
+
   if (
     !activeDiscoveryJob
   ) {
     return;
   }
+
 
   window.open(
     activeDiscoveryJob.jobUrl,
@@ -3424,9 +3081,11 @@ function openApply(
     "noopener"
   );
 
+
   $("applyConfirmJob")
     .textContent =
       `${activeDiscoveryJob.company} — ${activeDiscoveryJob.role}`;
+
 
   $("passReasonArea")
     .classList
@@ -3434,20 +3093,26 @@ function openApply(
       "hidden"
     );
 
+
   prepPassReasons();
+
 
   $("applyConfirmDialog")
     .showModal();
+
 }
+
 
 function openPass(
   id
 ) {
+
   activeDiscoveryJob =
     discoveredJobs.find(
       j =>
         j.id === id
     );
+
 
   if (
     !activeDiscoveryJob
@@ -3455,11 +3120,14 @@ function openPass(
     return;
   }
 
+
   $("applyConfirmJob")
     .textContent =
       `${activeDiscoveryJob.company} — ${activeDiscoveryJob.role}`;
 
+
   prepPassReasons();
+
 
   $("passReasonArea")
     .classList
@@ -3467,16 +3135,21 @@ function openPass(
       "hidden"
     );
 
+
   $("applyConfirmDialog")
     .showModal();
+
 }
 
+
 async function confirmApplied() {
+
   if (
     !activeDiscoveryJob
   ) {
     return;
   }
+
 
   const dupe =
     jobs.find(
@@ -3499,13 +3172,17 @@ async function confirmApplied() {
         )
     );
 
+
   if (dupe) {
+
     alert(
       "This job already appears in your tracker."
     );
 
     return;
+
   }
+
 
   const row = {
     user_id:
@@ -3555,6 +3232,7 @@ async function confirmApplied() {
       null
   };
 
+
   const {
     data,
     error
@@ -3565,13 +3243,17 @@ async function confirmApplied() {
       .select("id")
       .single();
 
+
   if (error) {
+
     alert(
       error.message
     );
 
     return;
+
   }
+
 
   await sb
     .from(
@@ -3597,30 +3279,39 @@ async function confirmApplied() {
       currentUser.id
     );
 
+
   $("applyConfirmDialog")
     .close();
+
 
   await Promise.all([
     loadJobs(),
     loadDiscovery()
   ]);
 
+
   switchView(
     "tracker"
   );
+
 }
 
+
 async function savePass() {
+
   if (
     !activeDiscoveryJob ||
     !selectedPassReason
   ) {
+
     alert(
       "Choose a reason first."
     );
 
     return;
+
   }
+
 
   const {
     error
@@ -3651,28 +3342,37 @@ async function savePass() {
         currentUser.id
       );
 
+
   if (error) {
+
     alert(
       error.message
     );
 
     return;
+
   }
+
 
   $("applyConfirmDialog")
     .close();
 
+
   await loadDiscovery();
+
 }
+
 
 function showInsight(
   title,
   rows,
   note
 ) {
+
   $("activityDialogTitle")
     .textContent =
       title;
+
 
   const active =
     rows.filter(
@@ -3688,38 +3388,21 @@ function showInsight(
     )
       .length;
 
+
   $("activityInsightSummary")
     .innerHTML = `
       <div class="insight-box">
-
-        <div class="k">
-          Showing
-        </div>
-
-        <div class="v">
-          ${rows.length}
-        </div>
-
+        <div class="k">Showing</div>
+        <div class="v">${rows.length}</div>
       </div>
 
       <div class="insight-box">
-
-        <div class="k">
-          Still active
-        </div>
-
-        <div class="v">
-          ${active}
-        </div>
-
+        <div class="k">Still active</div>
+        <div class="v">${active}</div>
       </div>
 
       <div class="insight-box">
-
-        <div class="k">
-          Rejected
-        </div>
-
+        <div class="k">Rejected</div>
         <div class="v">
           ${
             rows.filter(
@@ -3730,20 +3413,21 @@ function showInsight(
               .length
           }
         </div>
-
       </div>
     `;
+
 
   $("activityInsightPattern")
     .innerHTML = `
       <strong>
         What this includes
       </strong>
-
       <br>
-
-      ${esc(note)}
+      ${esc(
+        note
+      )}
     `;
+
 
   $("activityInsightList")
     .innerHTML =
@@ -3756,9 +3440,13 @@ function showInsight(
                   <div>
 
                     <div class="title">
-                      ${esc(j.company)}
+                      ${esc(
+                        j.company
+                      )}
                       ·
-                      ${esc(j.role)}
+                      ${esc(
+                        j.role
+                      )}
                     </div>
 
                     <div class="sub">
@@ -3794,13 +3482,17 @@ function showInsight(
           </div>
         `;
 
+
   $("activityDialog")
     .showModal();
+
 }
+
 
 function activityInsight(
   kind
 ) {
+
   const now =
     new Date();
 
@@ -3820,10 +3512,12 @@ function activityInsight(
       12
     );
 
+
   if (
     kind ===
     "applications"
   ) {
+
     showInsight(
       "Applications this month",
 
@@ -3840,12 +3534,15 @@ function activityInsight(
 
       "Applications you submitted directly."
     );
+
   }
+
 
   if (
     kind ===
     "screens"
   ) {
+
     showInsight(
       "Recruiter Screens this month",
 
@@ -3860,12 +3557,15 @@ function activityInsight(
 
       "Recruiter screens logged this month."
     );
+
   }
+
 
   if (
     kind ===
     "interviews"
   ) {
+
     showInsight(
       "Interviews this month",
 
@@ -3880,27 +3580,35 @@ function activityInsight(
 
       "Interviews logged this month."
     );
+
   }
+
 }
+
 
 function summaryInsight(
   kind
 ) {
+
   if (
     kind ===
     "total"
   ) {
+
     showInsight(
       "Total Opportunities",
       jobs.slice(),
       "Every opportunity currently saved in your tracker."
     );
+
   }
+
 
   if (
     kind ===
     "applied"
   ) {
+
     showInsight(
       "Applications Submitted",
 
@@ -3912,12 +3620,15 @@ function summaryInsight(
 
       "Opportunities you submitted yourself."
     );
+
   }
+
 
   if (
     kind ===
     "sourced"
   ) {
+
     showInsight(
       "Recruiter Sourced",
 
@@ -3929,12 +3640,15 @@ function summaryInsight(
 
       "Opportunities that started from recruiter outreach."
     );
+
   }
+
 
   if (
     kind ===
     "interviewing"
   ) {
+
     showInsight(
       "Currently Interviewing",
 
@@ -3952,12 +3666,15 @@ function summaryInsight(
 
       "Active pipelines in recruiter screen, interviewing, or final round."
     );
+
   }
+
 
   if (
     kind ===
     "response"
   ) {
+
     showInsight(
       "Response Rate",
 
@@ -3969,35 +3686,47 @@ function summaryInsight(
 
       "Opportunities marked as having received a response."
     );
+
   }
+
 }
+
 
 function wireKeyboard(
   el,
   fn
 ) {
+
   el.addEventListener(
     "click",
     fn
   );
 
+
   el.addEventListener(
     "keydown",
     e => {
+
       if (
         e.key ===
         "Enter" ||
         e.key ===
         " "
       ) {
+
         e.preventDefault();
         fn();
+
       }
+
     }
   );
+
 }
 
+
 function exportCSV() {
+
   const headers = [
     "Company",
     "Role",
@@ -4021,10 +3750,12 @@ function exportCSV() {
     "Notes"
   ];
 
+
   const keys = [
     ...fields,
     "notes"
   ];
+
 
   const quote =
     v =>
@@ -4035,6 +3766,7 @@ function exportCSV() {
           /"/g,
           '""'
         )}"`;
+
 
   const csv =
     [
@@ -4060,6 +3792,7 @@ function exportCSV() {
     ]
       .join("\n");
 
+
   const blob =
     new Blob(
       [csv],
@@ -4069,15 +3802,18 @@ function exportCSV() {
       }
     );
 
+
   const url =
     URL.createObjectURL(
       blob
     );
 
+
   const a =
     document.createElement(
       "a"
     );
+
 
   a.href =
     url;
@@ -4087,17 +3823,22 @@ function exportCSV() {
 
   a.click();
 
+
   URL.revokeObjectURL(
     url
   );
+
 }
+
 
 function importCSV(
   file
 ) {
+
   if (!file) {
     return;
   }
+
 
   Papa.parse(
     file,
@@ -4110,35 +3851,78 @@ function importCSV(
 
       complete:
         async result => {
+
           const hm = {
-            "Company": "company",
-            "Role": "role",
-            "Source": "source",
-            "Status": "status",
-            "Date Applied": "dateApplied",
-            "Recruiter Screen Date": "recruiterScreenDate",
-            "Interview Date": "interviewDate",
-            "Heard Back": "heardBack",
-            "Date Heard Back": "dateHeardBack",
-            "Last Contact": "lastContact",
-            "Salary Min": "salaryMin",
-            "Salary Max": "salaryMax",
-            "Additional Compensation": "additionalComp",
-            "Recruiter": "recruiter",
-            "Recruiter Contact": "recruiterContact",
-            "Location": "location",
-            "Work Arrangement": "workArrangement",
-            "Job URL": "jobUrl",
-            "Next Step": "nextStep",
-            "Notes": "notes"
+            "Company":
+              "company",
+
+            "Role":
+              "role",
+
+            "Source":
+              "source",
+
+            "Status":
+              "status",
+
+            "Date Applied":
+              "dateApplied",
+
+            "Recruiter Screen Date":
+              "recruiterScreenDate",
+
+            "Interview Date":
+              "interviewDate",
+
+            "Heard Back":
+              "heardBack",
+
+            "Date Heard Back":
+              "dateHeardBack",
+
+            "Last Contact":
+              "lastContact",
+
+            "Salary Min":
+              "salaryMin",
+
+            "Salary Max":
+              "salaryMax",
+
+            "Additional Compensation":
+              "additionalComp",
+
+            "Recruiter":
+              "recruiter",
+
+            "Recruiter Contact":
+              "recruiterContact",
+
+            "Location":
+              "location",
+
+            "Work Arrangement":
+              "workArrangement",
+
+            "Job URL":
+              "jobUrl",
+
+            "Next Step":
+              "nextStep",
+
+            "Notes":
+              "notes"
           };
 
+
           const rows = [];
+
 
           for (
             const row
             of result.data || []
           ) {
+
             if (
               !row.Company ||
               !row.Role
@@ -4146,7 +3930,9 @@ function importCSV(
               continue;
             }
 
+
             const ui = {};
+
 
             for (
               const [
@@ -4157,27 +3943,35 @@ function importCSV(
                 hm
               )
             ) {
+
               ui[field] =
                 String(
                   row[header] ??
                   ""
                 )
                   .trim();
+
             }
+
 
             rows.push({
               ...toDb(ui),
+
               notes:
                 ui.notes ||
                 null,
+
               user_id:
                 currentUser.id
             });
+
           }
+
 
           if (
             rows.length
           ) {
+
             const {
               error
             } =
@@ -4185,28 +3979,38 @@ function importCSV(
                 .from("jobs")
                 .insert(rows);
 
+
             if (error) {
+
               alert(
                 error.message
               );
 
               return;
+
             }
 
+
             await loadJobs();
+
           }
+
         }
     }
   );
+
 }
+
 
 $("signInBtn")
   .addEventListener(
     "click",
     async () => {
+
       $("authMsg")
         .textContent =
           "Signing in...";
+
 
       const {
         data,
@@ -4224,28 +4028,36 @@ $("signInBtn")
                 .value
           });
 
+
       if (error) {
+
         $("authMsg")
           .textContent =
             error.message;
 
         return;
+
       }
+
 
       $("authMsg")
         .textContent =
           "";
 
+
       await enterApp(
         data.user
       );
+
     }
   );
+
 
 $("signUpBtn")
   .addEventListener(
     "click",
     async () => {
+
       const {
         error
       } =
@@ -4261,24 +4073,30 @@ $("signUpBtn")
                 .value
           });
 
+
       $("authMsg")
         .textContent =
           error
             ? error.message
             : "Account created. Check your email if confirmation is required.";
+
     }
   );
+
 
 $("signOutBtn")
   .addEventListener(
     "click",
     async () => {
+
       await sb.auth
         .signOut();
 
       location.reload();
+
     }
   );
+
 
 $("tabTracker")
   .addEventListener(
@@ -4289,6 +4107,7 @@ $("tabTracker")
       )
   );
 
+
 $("tabDiscovery")
   .addEventListener(
     "click",
@@ -4298,12 +4117,14 @@ $("tabDiscovery")
       )
   );
 
+
 $("addJobBtn")
   .addEventListener(
     "click",
     () =>
       openJob()
   );
+
 
 $("closeJobDialog")
   .addEventListener(
@@ -4313,6 +4134,7 @@ $("closeJobDialog")
         .close()
   );
 
+
 $("cancelJob")
   .addEventListener(
     "click",
@@ -4321,22 +4143,29 @@ $("cancelJob")
         .close()
   );
 
+
 $("jobForm")
   .addEventListener(
     "submit",
     async e => {
+
       e.preventDefault();
+
 
       const ui = {};
 
+
       fields.forEach(
         f => {
+
           ui[f] =
             $(f)?.value
               .trim() ??
             "";
+
         }
       );
+
 
       if (
         !ui.company ||
@@ -4344,6 +4173,7 @@ $("jobForm")
       ) {
         return;
       }
+
 
       const payload = {
         ...toDb(ui),
@@ -4358,9 +4188,11 @@ $("jobForm")
           currentUser.id
       };
 
+
       const id =
         $("editId")
           .value;
+
 
       const {
         error
@@ -4386,20 +4218,27 @@ $("jobForm")
                 payload
               );
 
+
       if (error) {
+
         alert(
           error.message
         );
 
         return;
+
       }
+
 
       $("jobDialog")
         .close();
 
+
       await loadJobs();
+
     }
   );
+
 
 [
   "search",
@@ -4419,6 +4258,7 @@ $("jobForm")
           renderTracker
         )
   );
+
 
 [
   "discSearch",
@@ -4440,6 +4280,7 @@ $("jobForm")
         )
   );
 
+
 $("importBtn")
   .addEventListener(
     "click",
@@ -4447,6 +4288,7 @@ $("importBtn")
       $("csvFileInput")
         .click()
   );
+
 
 $("csvFileInput")
   .addEventListener(
@@ -4457,11 +4299,13 @@ $("csvFileInput")
       )
   );
 
+
 $("exportBtn")
   .addEventListener(
     "click",
     exportCSV
   );
+
 
 document
   .querySelectorAll(
@@ -4469,9 +4313,14 @@ document
   )
   .forEach(
     button => {
+
       button.addEventListener(
         "click",
         () => {
+
+          $("notesEditor")
+            .focus();
+
           document.execCommand(
             button.dataset.cmd,
             false,
@@ -4480,21 +4329,30 @@ document
 
           $("notesEditor")
             .focus();
+
         }
       );
+
     }
   );
+
 
 $("notesLinkBtn")
   .addEventListener(
     "click",
     () => {
+
       const url =
         prompt(
           "Paste the link URL:"
         );
 
+
       if (url) {
+
+        $("notesEditor")
+          .focus();
+
         document.execCommand(
           "createLink",
           false,
@@ -4503,9 +4361,12 @@ $("notesLinkBtn")
 
         $("notesEditor")
           .focus();
+
       }
+
     }
   );
+
 
 wireKeyboard(
   $("activityApplications"),
@@ -4515,6 +4376,7 @@ wireKeyboard(
     )
 );
 
+
 wireKeyboard(
   $("activityScreens"),
   () =>
@@ -4522,6 +4384,7 @@ wireKeyboard(
       "screens"
     )
 );
+
 
 wireKeyboard(
   $("activityInterviews"),
@@ -4531,6 +4394,7 @@ wireKeyboard(
     )
 );
 
+
 wireKeyboard(
   $("statTotal"),
   () =>
@@ -4538,6 +4402,7 @@ wireKeyboard(
       "total"
     )
 );
+
 
 wireKeyboard(
   $("statApplied"),
@@ -4547,6 +4412,7 @@ wireKeyboard(
     )
 );
 
+
 wireKeyboard(
   $("statSourced"),
   () =>
@@ -4554,6 +4420,7 @@ wireKeyboard(
       "sourced"
     )
 );
+
 
 wireKeyboard(
   $("statInterviewing"),
@@ -4563,6 +4430,7 @@ wireKeyboard(
     )
 );
 
+
 wireKeyboard(
   $("statResponse"),
   () =>
@@ -4570,6 +4438,7 @@ wireKeyboard(
       "response"
     )
 );
+
 
 $("activityDialogClose")
   .addEventListener(
@@ -4579,6 +4448,7 @@ $("activityDialogClose")
         .close()
   );
 
+
 $("closeApplyDialog")
   .addEventListener(
     "click",
@@ -4587,28 +4457,36 @@ $("closeApplyDialog")
         .close()
   );
 
+
 $("yesAppliedBtn")
   .addEventListener(
     "click",
     confirmApplied
   );
 
+
 $("notYetBtn")
   .addEventListener(
     "click",
     async () => {
+
       if (
         activeDiscoveryJob
       ) {
+
         await setConsidering(
           activeDiscoveryJob.id
         );
+
       }
+
 
       $("applyConfirmDialog")
         .close();
+
     }
   );
+
 
 $("decidedNoBtn")
   .addEventListener(
@@ -4621,13 +4499,16 @@ $("decidedNoBtn")
         )
   );
 
+
 $("savePassBtn")
   .addEventListener(
     "click",
     savePass
   );
 
+
 (async () => {
+
   const {
     data: {
       session
@@ -4636,13 +4517,17 @@ $("savePassBtn")
     await sb.auth
       .getSession();
 
+
   if (
     session?.user
   ) {
+
     await enterApp(
       session.user
     );
+
   }
+
 })();
 </script>
 
