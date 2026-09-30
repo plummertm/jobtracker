@@ -16,11 +16,14 @@
   --muted: #6b7280;
   --border: #e5e7eb;
   --accent: #111827;
+  --blue: #2563eb;
   --blue-soft: #eff6ff;
   --purple-soft: #f5f3ff;
   --orange-soft: #fff7ed;
   --green: #047857;
+  --green-soft: #ecfdf5;
   --red: #991b1b;
+  --red-soft: #fef2f2;
 }
 
 * {
@@ -99,19 +102,20 @@ button {
 }
 
 .danger {
-  background: #fef2f2;
+  background: var(--red-soft);
   color: var(--red);
 }
 
 .success {
-  background: #ecfdf5;
+  background: var(--green-soft);
   color: #065f46;
 }
 
 .actions,
 .tabs,
 .row-actions,
-.quick-reasons {
+.quick-reasons,
+.notes-toolbar {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -154,7 +158,7 @@ label {
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 28px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 18px 50px rgba(0,0,0,.08);
 }
 
 .stack {
@@ -240,7 +244,7 @@ label {
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: .08em;
   color: #475569;
 }
 
@@ -252,7 +256,7 @@ label {
 }
 
 .period-value {
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255,255,255,.75);
   border: 1px solid #fff;
   border-radius: 13px;
   padding: 10px;
@@ -286,12 +290,12 @@ label {
   padding: 18px;
   border-radius: 14px;
   cursor: pointer;
-  transition: 0.18s;
+  transition: .18s;
 }
 
 .stat:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 24px rgba(15,23,42,.08);
 }
 
 .stat .n {
@@ -307,7 +311,7 @@ label {
 
 .toolbar {
   display: grid;
-  grid-template-columns: 2fr repeat(3, 1fr);
+  grid-template-columns: 2fr repeat(4, 1fr);
   gap: 10px;
   background: #fff;
   border: 1px solid var(--border);
@@ -366,7 +370,7 @@ td {
 }
 
 .link {
-  color: #2563eb;
+  color: var(--blue);
   text-decoration: none;
 }
 
@@ -443,11 +447,11 @@ dialog {
   border-radius: 18px;
   width: min(880px, calc(100vw - 28px));
   padding: 0;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 25px 80px rgba(0,0,0,.2);
 }
 
 dialog::backdrop {
-  background: rgba(17, 24, 39, 0.45);
+  background: rgba(17,24,39,.45);
 }
 
 .modal-head {
@@ -562,6 +566,39 @@ dialog::backdrop {
   font-weight: 750;
 }
 
+.notes-wrap {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.notes-toolbar {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: #f9fafb;
+}
+
+.notes-toolbar button {
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 7px;
+  min-width: 34px;
+}
+
+.notes-editor {
+  min-height: 160px;
+  padding: 12px;
+  outline: none;
+  line-height: 1.5;
+}
+
+.notes-editor:empty:before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+}
+
 @media (max-width: 900px) {
   .stats,
   .discovery-stats {
@@ -590,12 +627,15 @@ dialog::backdrop {
 
 <div id="authView" class="auth-shell">
   <div class="auth-card">
+
     <h1>Job Search Tracker</h1>
+
     <p class="muted">
       Sign in to access the same job data on every device.
     </p>
 
     <div class="stack">
+
       <div>
         <label>Email</label>
         <input id="authEmail" type="email">
@@ -613,16 +653,20 @@ dialog::backdrop {
       <button class="secondary" id="signUpBtn">
         Create Account
       </button>
+
     </div>
 
     <div id="authMsg" class="auth-msg muted"></div>
   </div>
 </div>
 
+
 <div id="appView" class="wrap hidden">
 
   <div class="topbar">
+
     <div>
+
       <h1>Job Search Tracker</h1>
 
       <p class="subtitle">
@@ -630,9 +674,11 @@ dialog::backdrop {
       </p>
 
       <div id="userEmail" class="userline"></div>
+
     </div>
 
     <div class="actions">
+
       <button class="secondary" id="importBtn">
         Import CSV
       </button>
@@ -655,10 +701,14 @@ dialog::backdrop {
       <button class="primary" id="addJobBtn">
         + Add Job
       </button>
+
     </div>
+
   </div>
 
+
   <div class="tabs">
+
     <button id="tabTracker" class="tab active">
       Application Tracker
     </button>
@@ -667,21 +717,28 @@ dialog::backdrop {
       Job Discovery
       <span id="newDiscoveryBadge"></span>
     </button>
+
   </div>
+
 
   <div id="trackerView">
 
     <section class="activity-shell">
 
       <div class="activity-head">
+
         <div>
+
           <h2>Job search activity</h2>
 
           <p id="activityPeriodLabel">
             Your week and month update automatically.
           </p>
+
         </div>
+
       </div>
+
 
       <div class="activity-grid">
 
@@ -691,27 +748,46 @@ dialog::backdrop {
           role="button"
           tabindex="0"
         >
+
           <div class="activity-kicker">
             Applications
           </div>
 
           <div class="activity-values">
+
             <div class="period-value">
-              <strong id="appsWeek">0</strong>
-              <span>This week</span>
+
+              <strong id="appsWeek">
+                0
+              </strong>
+
+              <span>
+                This week
+              </span>
+
             </div>
 
             <div class="period-value">
-              <strong id="appsMonth">0</strong>
-              <span>This month</span>
+
+              <strong id="appsMonth">
+                0
+              </strong>
+
+              <span>
+                This month
+              </span>
+
             </div>
+
           </div>
 
           <div
             class="activity-foot"
             id="appsPace"
           ></div>
+
         </div>
+
 
         <div
           id="activityScreens"
@@ -719,27 +795,46 @@ dialog::backdrop {
           role="button"
           tabindex="0"
         >
+
           <div class="activity-kicker">
             Recruiter screens
           </div>
 
           <div class="activity-values">
+
             <div class="period-value">
-              <strong id="screensWeek">0</strong>
-              <span>This week</span>
+
+              <strong id="screensWeek">
+                0
+              </strong>
+
+              <span>
+                This week
+              </span>
+
             </div>
 
             <div class="period-value">
-              <strong id="screensMonth">0</strong>
-              <span>This month</span>
+
+              <strong id="screensMonth">
+                0
+              </strong>
+
+              <span>
+                This month
+              </span>
+
             </div>
+
           </div>
 
           <div
             class="activity-foot"
             id="screensPace"
           ></div>
+
         </div>
+
 
         <div
           id="activityInterviews"
@@ -747,30 +842,50 @@ dialog::backdrop {
           role="button"
           tabindex="0"
         >
+
           <div class="activity-kicker">
             Interviews
           </div>
 
           <div class="activity-values">
+
             <div class="period-value">
-              <strong id="interviewsWeek">0</strong>
-              <span>This week</span>
+
+              <strong id="interviewsWeek">
+                0
+              </strong>
+
+              <span>
+                This week
+              </span>
+
             </div>
 
             <div class="period-value">
-              <strong id="interviewsMonth">0</strong>
-              <span>This month</span>
+
+              <strong id="interviewsMonth">
+                0
+              </strong>
+
+              <span>
+                This month
+              </span>
+
             </div>
+
           </div>
 
           <div
             class="activity-foot"
             id="interviewsPace"
           ></div>
+
         </div>
 
       </div>
+
     </section>
+
 
     <section class="stats">
 
@@ -780,6 +895,7 @@ dialog::backdrop {
         role="button"
         tabindex="0"
       >
+
         <div
           class="n"
           id="totalCount"
@@ -790,7 +906,9 @@ dialog::backdrop {
         <div class="label">
           Total opportunities
         </div>
+
       </div>
+
 
       <div
         id="statApplied"
@@ -798,6 +916,7 @@ dialog::backdrop {
         role="button"
         tabindex="0"
       >
+
         <div
           class="n"
           id="appliedCount"
@@ -808,7 +927,9 @@ dialog::backdrop {
         <div class="label">
           Applications submitted
         </div>
+
       </div>
+
 
       <div
         id="statSourced"
@@ -816,6 +937,7 @@ dialog::backdrop {
         role="button"
         tabindex="0"
       >
+
         <div
           class="n"
           id="sourcedCount"
@@ -826,7 +948,9 @@ dialog::backdrop {
         <div class="label">
           Recruiter sourced
         </div>
+
       </div>
+
 
       <div
         id="statInterviewing"
@@ -834,6 +958,7 @@ dialog::backdrop {
         role="button"
         tabindex="0"
       >
+
         <div
           class="n"
           id="interviewCount"
@@ -844,7 +969,9 @@ dialog::backdrop {
         <div class="label">
           Currently interviewing
         </div>
+
       </div>
+
 
       <div
         id="statResponse"
@@ -852,6 +979,7 @@ dialog::backdrop {
         role="button"
         tabindex="0"
       >
+
         <div
           class="n"
           id="responseRate"
@@ -862,9 +990,11 @@ dialog::backdrop {
         <div class="label">
           Response rate
         </div>
+
       </div>
 
     </section>
+
 
     <section>
 
@@ -876,7 +1006,11 @@ dialog::backdrop {
         >
 
         <select id="statusFilter">
-          <option value="">All statuses</option>
+
+          <option value="">
+            All statuses
+          </option>
+
           <option>Interested</option>
           <option>Applied</option>
           <option>Recruiter Screen</option>
@@ -886,28 +1020,64 @@ dialog::backdrop {
           <option>Rejected</option>
           <option>Withdrawn</option>
           <option>Ghosted</option>
+
         </select>
 
         <select id="sourceFilter">
-          <option value="">All sources</option>
+
+          <option value="">
+            All sources
+          </option>
+
           <option>Applied</option>
           <option>Recruiter Sourced</option>
           <option>Referral</option>
+
         </select>
 
         <select id="responseFilter">
-          <option value="">Any response</option>
-          <option value="Yes">Heard back</option>
-          <option value="No">No response</option>
+
+          <option value="">
+            Any response
+          </option>
+
+          <option value="Yes">
+            Heard back
+          </option>
+
+          <option value="No">
+            No response
+          </option>
+
+        </select>
+
+        <select id="trackerSort">
+
+          <option value="newest">
+            Newest applied
+          </option>
+
+          <option value="oldest">
+            Oldest applied
+          </option>
+
+          <option value="company">
+            Company A–Z
+          </option>
+
         </select>
 
       </div>
 
+
       <div class="table-wrap">
 
         <table>
+
           <thead>
+
             <tr>
+
               <th>Company / Role</th>
               <th>Status</th>
               <th>Source</th>
@@ -921,10 +1091,13 @@ dialog::backdrop {
               <th>Location</th>
               <th>Link</th>
               <th>Actions</th>
+
             </tr>
+
           </thead>
 
           <tbody id="jobRows"></tbody>
+
         </table>
 
         <div
@@ -933,11 +1106,13 @@ dialog::backdrop {
         >
           No jobs yet.
         </div>
+
       </div>
 
     </section>
 
   </div>
+
 
   <div
     id="discoveryView"
@@ -945,48 +1120,88 @@ dialog::backdrop {
   >
 
     <div class="discovery-head">
+
       <h2>Job Discovery</h2>
 
       <p>
         Automatically discovered jobs stay here until you confirm
         you applied or pass on them.
       </p>
+
     </div>
+
 
     <div
       id="discoverySetupNotice"
       class="notice hidden"
     >
+
       <strong>
         Discovery database setup needed.
       </strong>
+
       <br>
+
       Run the Supabase discovery SQL, then refresh.
+
     </div>
+
 
     <div class="discovery-stats">
 
       <div class="disc-stat">
-        <strong id="discNew">0</strong>
-        <span>New / unreviewed</span>
+
+        <strong id="discNew">
+          0
+        </strong>
+
+        <span>
+          New / unreviewed
+        </span>
+
       </div>
 
-      <div class="disc-stat">
-        <strong id="discConsidering">0</strong>
-        <span>Considering</span>
-      </div>
 
       <div class="disc-stat">
-        <strong id="discApplied">0</strong>
-        <span>Confirmed applied</span>
+
+        <strong id="discConsidering">
+          0
+        </strong>
+
+        <span>
+          Considering
+        </span>
+
       </div>
 
+
       <div class="disc-stat">
-        <strong id="discPassed">0</strong>
-        <span>Passed</span>
+
+        <strong id="discApplied">
+          0
+        </strong>
+
+        <span>
+          Confirmed applied
+        </span>
+
+      </div>
+
+
+      <div class="disc-stat">
+
+        <strong id="discPassed">
+          0
+        </strong>
+
+        <span>
+          Passed
+        </span>
+
       </div>
 
     </div>
+
 
     <div class="toolbar">
 
@@ -995,35 +1210,124 @@ dialog::backdrop {
         placeholder="Search discovered jobs…"
       >
 
+
       <select id="discDecisionFilter">
-        <option value="">All decisions</option>
-        <option value="new">New</option>
-        <option value="considering">Considering</option>
-        <option value="applied">Applied</option>
-        <option value="passed">Passed</option>
+
+        <option value="">
+          All decisions
+        </option>
+
+        <option value="new">
+          New
+        </option>
+
+        <option value="considering">
+          Considering
+        </option>
+
+        <option value="applied">
+          Applied
+        </option>
+
+        <option value="passed">
+          Passed
+        </option>
+
       </select>
+
 
       <select id="discMatchFilter">
-        <option value="">All match scores</option>
-        <option value="80">80%+</option>
-        <option value="70">70%+</option>
-        <option value="60">60%+</option>
+
+        <option value="">
+          All match scores
+        </option>
+
+        <option value="90">
+          90%+
+        </option>
+
+        <option value="80">
+          80%+
+        </option>
+
+        <option value="70">
+          70%+
+        </option>
+
+        <option value="60">
+          60%+
+        </option>
+
       </select>
 
+
       <select id="discAgeFilter">
-        <option value="">Any posting age</option>
-        <option value="1">Last 24 hours</option>
-        <option value="3">Last 3 days</option>
-        <option value="7">Last 7 days</option>
+
+        <option value="1">
+          Posted: last 24 hours
+        </option>
+
+        <option value="3">
+          Posted: last 3 days
+        </option>
+
+        <option value="7">
+          Posted: last 7 days
+        </option>
+
+        <option value="14">
+          Posted: last 14 days
+        </option>
+
+        <option
+          value="30"
+          selected
+        >
+          Posted: last 30 days
+        </option>
+
+        <option value="">
+          Posted: any age
+        </option>
+
+      </select>
+
+
+      <select id="discSort">
+
+        <option value="posted_desc">
+          Posted: newest first
+        </option>
+
+        <option value="posted_asc">
+          Posted: oldest first
+        </option>
+
+        <option value="match_desc">
+          Match: highest first
+        </option>
+
+        <option value="match_asc">
+          Match: lowest first
+        </option>
+
+        <option value="company">
+          Company A–Z
+        </option>
+
       </select>
 
     </div>
 
+
     <div class="table-wrap">
 
       <table>
+
         <thead>
+
           <tr>
+
             <th>Company / Role</th>
             <th>Match</th>
             <th>Posted</th>
@@ -1032,29 +1336,36 @@ dialog::backdrop {
             <th>Decision</th>
             <th>Why / Notes</th>
             <th>Actions</th>
+
           </tr>
+
         </thead>
 
         <tbody id="discoveryRows"></tbody>
+
       </table>
+
 
       <div
         id="discoveryEmpty"
         class="empty"
       >
-        No discovered jobs yet.
+        No discovered jobs matching these filters.
       </div>
 
     </div>
 
   </div>
+
 </div>
+
 
 <dialog id="jobDialog">
 
   <form id="jobForm">
 
     <div class="modal-head">
+
       <h2 id="modalTitle">
         Add Job
       </h2>
@@ -1066,7 +1377,9 @@ dialog::backdrop {
       >
         Close
       </button>
+
     </div>
+
 
     <div class="modal-body">
 
@@ -1075,34 +1388,70 @@ dialog::backdrop {
         id="editId"
       >
 
+
       <div class="grid">
 
         <div>
-          <label>Company *</label>
-          <input id="company" required>
+
+          <label>
+            Company *
+          </label>
+
+          <input
+            id="company"
+            required
+          >
+
         </div>
 
-        <div>
-          <label>Role / Job Title *</label>
-          <input id="role" required>
-        </div>
 
         <div>
+
+          <label>
+            Role / Job Title *
+          </label>
+
+          <input
+            id="role"
+            required
+          >
+
+        </div>
+
+
+        <div>
+
           <label>
             How did this opportunity start?
           </label>
 
           <select id="source">
-            <option>Applied</option>
-            <option>Recruiter Sourced</option>
-            <option>Referral</option>
+
+            <option>
+              Applied
+            </option>
+
+            <option>
+              Recruiter Sourced
+            </option>
+
+            <option>
+              Referral
+            </option>
+
           </select>
+
         </div>
 
+
         <div>
-          <label>Status</label>
+
+          <label>
+            Status
+          </label>
 
           <select id="status">
+
             <option>Interested</option>
             <option>Applied</option>
             <option>Recruiter Screen</option>
@@ -1112,10 +1461,14 @@ dialog::backdrop {
             <option>Rejected</option>
             <option>Withdrawn</option>
             <option>Ghosted</option>
+
           </select>
+
         </div>
 
+
         <div>
+
           <label>
             Date Applied / Entered Pipeline
           </label>
@@ -1124,9 +1477,12 @@ dialog::backdrop {
             id="dateApplied"
             type="date"
           >
+
         </div>
 
+
         <div>
+
           <label>
             Recruiter Screen Date
           </label>
@@ -1135,9 +1491,12 @@ dialog::backdrop {
             id="recruiterScreenDate"
             type="date"
           >
+
         </div>
 
+
         <div>
+
           <label>
             Interview Date
           </label>
@@ -1146,20 +1505,28 @@ dialog::backdrop {
             id="interviewDate"
             type="date"
           >
+
         </div>
 
+
         <div>
+
           <label>
             Have you heard back?
           </label>
 
           <select id="heardBack">
+
             <option>No</option>
             <option>Yes</option>
+
           </select>
+
         </div>
 
+
         <div>
+
           <label>
             Date You Heard Back
           </label>
@@ -1168,9 +1535,12 @@ dialog::backdrop {
             id="dateHeardBack"
             type="date"
           >
+
         </div>
 
+
         <div>
+
           <label>
             Last Contact / Update
           </label>
@@ -1179,9 +1549,12 @@ dialog::backdrop {
             id="lastContact"
             type="date"
           >
+
         </div>
 
+
         <div>
+
           <label>
             Salary Min
           </label>
@@ -1190,9 +1563,12 @@ dialog::backdrop {
             id="salaryMin"
             type="number"
           >
+
         </div>
 
+
         <div>
+
           <label>
             Salary Max
           </label>
@@ -1201,54 +1577,74 @@ dialog::backdrop {
             id="salaryMax"
             type="number"
           >
+
         </div>
 
+
         <div>
+
           <label>
             Bonus / OTE / Equity
           </label>
 
           <input id="additionalComp">
+
         </div>
 
+
         <div>
+
           <label>
             Recruiter Name
           </label>
 
           <input id="recruiter">
+
         </div>
 
+
         <div>
+
           <label>
             Recruiter Email / Contact
           </label>
 
           <input id="recruiterContact">
+
         </div>
 
+
         <div>
+
           <label>
             Location
           </label>
 
           <input id="location">
+
         </div>
 
+
         <div>
+
           <label>
             Work Arrangement
           </label>
 
           <select id="workArrangement">
+
             <option value=""></option>
             <option>Remote</option>
             <option>Hybrid</option>
             <option>On-site</option>
+
           </select>
+
         </div>
 
+
         <div>
+
           <label>
             Job URL
           </label>
@@ -1257,26 +1653,102 @@ dialog::backdrop {
             id="jobUrl"
             type="url"
           >
+
         </div>
 
+
         <div class="full">
+
           <label>
             Interview Stage / Next Step
           </label>
 
           <input id="nextStep">
+
         </div>
 
+
         <div class="full">
+
           <label>
             Notes
           </label>
 
-          <textarea id="notes"></textarea>
+
+          <div class="notes-wrap">
+
+            <div class="notes-toolbar">
+
+              <button
+                type="button"
+                data-cmd="bold"
+                title="Bold"
+              >
+                <strong>B</strong>
+              </button>
+
+              <button
+                type="button"
+                data-cmd="italic"
+                title="Italic"
+              >
+                <em>I</em>
+              </button>
+
+              <button
+                type="button"
+                data-cmd="underline"
+                title="Underline"
+              >
+                <u>U</u>
+              </button>
+
+              <button
+                type="button"
+                data-cmd="insertUnorderedList"
+              >
+                • List
+              </button>
+
+              <button
+                type="button"
+                data-cmd="insertOrderedList"
+              >
+                1. List
+              </button>
+
+              <button
+                type="button"
+                id="notesLinkBtn"
+              >
+                Link
+              </button>
+
+              <button
+                type="button"
+                data-cmd="removeFormat"
+              >
+                Clear format
+              </button>
+
+            </div>
+
+
+            <div
+              id="notesEditor"
+              class="notes-editor"
+              contenteditable="true"
+              data-placeholder="Add interview notes, recruiter context, follow-up details, preparation notes, etc."
+            ></div>
+
+          </div>
+
         </div>
 
       </div>
+
     </div>
+
 
     <div class="modal-foot">
 
@@ -1298,7 +1770,9 @@ dialog::backdrop {
     </div>
 
   </form>
+
 </dialog>
+
 
 <dialog id="applyConfirmDialog">
 
@@ -1317,12 +1791,14 @@ dialog::backdrop {
 
   </div>
 
+
   <div class="modal-body">
 
     <div
       id="applyConfirmJob"
       class="notice"
     ></div>
+
 
     <div class="choice-grid">
 
@@ -1349,6 +1825,7 @@ dialog::backdrop {
 
     </div>
 
+
     <div
       id="passReasonArea"
       class="hidden"
@@ -1364,11 +1841,13 @@ dialog::backdrop {
         class="quick-reasons"
       ></div>
 
+
       <label style="margin-top:14px">
         Optional note
       </label>
 
       <textarea id="passNote"></textarea>
+
 
       <div
         style="
@@ -1390,7 +1869,9 @@ dialog::backdrop {
     </div>
 
   </div>
+
 </dialog>
+
 
 <dialog id="activityDialog">
 
@@ -1408,6 +1889,7 @@ dialog::backdrop {
     </button>
 
   </div>
+
 
   <div class="modal-body">
 
@@ -1427,7 +1909,9 @@ dialog::backdrop {
     ></div>
 
   </div>
+
 </dialog>
+
 
 <script>
 const SUPABASE_URL =
@@ -1442,15 +1926,18 @@ const sb =
     SUPABASE_KEY
   );
 
+
 const $ =
   id =>
     document.getElementById(id);
+
 
 let currentUser = null;
 let jobs = [];
 let discoveredJobs = [];
 let activeDiscoveryJob = null;
 let selectedPassReason = "";
+
 
 const PASS_REASONS = [
   "Salary too low",
@@ -1464,6 +1951,7 @@ const PASS_REASONS = [
   "Duplicate posting",
   "Other"
 ];
+
 
 const dbMap = {
   dateApplied:
@@ -1506,6 +1994,7 @@ const dbMap = {
     "next_step"
 };
 
+
 const fields = [
   "company",
   "role",
@@ -1525,11 +2014,12 @@ const fields = [
   "location",
   "workArrangement",
   "jobUrl",
-  "nextStep",
-  "notes"
+  "nextStep"
 ];
 
+
 function esc(v = "") {
+
   return String(v ?? "")
     .replace(
       /[&<>"']/g,
@@ -1541,22 +2031,48 @@ function esc(v = "") {
         "'": "&#039;"
       })[m]
     );
+
 }
 
+
+function stripHtml(v = "") {
+
+  const div =
+    document.createElement("div");
+
+  div.innerHTML =
+    v;
+
+  return (
+    div.textContent ||
+    div.innerText ||
+    ""
+  );
+
+}
+
+
 function fmtDate(v) {
+
   if (!v) {
     return "—";
   }
 
   const p =
-    String(v).split("-");
+    String(v)
+      .split("-");
 
-  return p.length === 3
-    ? `${p[1]}/${p[2]}/${p[0]}`
-    : v;
+  return (
+    p.length === 3
+      ? `${p[1]}/${p[2]}/${p[0]}`
+      : v
+  );
+
 }
 
+
 function money(v) {
+
   return (
     v !== "" &&
     v != null
@@ -1565,9 +2081,12 @@ function money(v) {
       Number(v)
         .toLocaleString()
     : "";
+
 }
 
+
 function todayISO() {
+
   const d =
     new Date();
 
@@ -1580,9 +2099,12 @@ function todayISO() {
   )
     .toISOString()
     .slice(0, 10);
+
 }
 
+
 function parseDate(v) {
+
   if (!v) {
     return null;
   }
@@ -1596,15 +2118,26 @@ function parseDate(v) {
       .split("-")
       .map(Number);
 
+  if (
+    !y ||
+    !m ||
+    !d
+  ) {
+    return null;
+  }
+
   return new Date(
     y,
     m - 1,
     d,
     12
   );
+
 }
 
+
 function startOfWeek(d) {
+
   const x =
     new Date(
       d.getFullYear(),
@@ -1622,9 +2155,12 @@ function startOfWeek(d) {
   );
 
   return x;
+
 }
 
+
 function endOfWeek(d) {
+
   const x =
     startOfWeek(d);
 
@@ -1633,13 +2169,16 @@ function endOfWeek(d) {
   );
 
   return x;
+
 }
+
 
 function inRange(
   v,
   s,
   e
 ) {
+
   const d =
     parseDate(v);
 
@@ -1648,45 +2187,62 @@ function inRange(
     d >= s &&
     d <= e
   );
+
 }
 
+
 function toDb(obj) {
+
   const out = {};
 
   for (
-    const [k, v]
+    const [
+      k,
+      v
+    ]
     of Object.entries(obj)
   ) {
+
     out[
       dbMap[k] || k
     ] =
       v === ""
         ? null
         : v;
+
   }
+
 
   if (
     out.salary_min != null
   ) {
+
     out.salary_min =
       Number(
         out.salary_min
       );
+
   }
+
 
   if (
     out.salary_max != null
   ) {
+
     out.salary_max =
       Number(
         out.salary_max
       );
+
   }
 
   return out;
+
 }
 
+
 function fromDb(j) {
+
   return {
     id:
       j.id,
@@ -1751,9 +2307,12 @@ function fromDb(j) {
     notes:
       j.notes || ""
   };
+
 }
 
+
 function fromDiscovery(j) {
+
   return {
     id:
       j.id,
@@ -1803,9 +2362,12 @@ function fromDiscovery(j) {
     passNote:
       j.pass_note || ""
   };
+
 }
 
+
 function comp(j) {
+
   const lo =
     money(
       j.salaryMin
@@ -1827,11 +2389,14 @@ function comp(j) {
         ? `Up to ${hi}`
         : j.additionalComp ||
           "—";
+
 }
+
 
 async function enterApp(
   user
 ) {
+
   currentUser =
     user;
 
@@ -1851,9 +2416,12 @@ async function enterApp(
     loadJobs(),
     loadDiscovery()
   ]);
+
 }
 
+
 async function loadJobs() {
+
   const {
     data,
     error
@@ -1873,12 +2441,14 @@ async function loadJobs() {
       );
 
   if (error) {
+
     alert(
       "Could not load jobs: " +
       error.message
     );
 
     return;
+
   }
 
   jobs =
@@ -1886,9 +2456,12 @@ async function loadJobs() {
       .map(fromDb);
 
   renderTracker();
+
 }
 
+
 async function loadDiscovery() {
+
   const {
     data,
     error
@@ -1910,6 +2483,7 @@ async function loadDiscovery() {
       );
 
   if (error) {
+
     $("discoverySetupNotice")
       .classList
       .remove("hidden");
@@ -1919,6 +2493,7 @@ async function loadDiscovery() {
     renderDiscovery();
 
     return;
+
   }
 
   $("discoverySetupNotice")
@@ -1932,9 +2507,12 @@ async function loadDiscovery() {
       );
 
   renderDiscovery();
+
 }
 
+
 function switchView(v) {
+
   $("trackerView")
     .classList
     .toggle(
@@ -1966,11 +2544,16 @@ function switchView(v) {
   if (
     v === "discovery"
   ) {
+
     loadDiscovery();
+
   }
+
 }
 
+
 function renderTracker() {
+
   const q =
     $("search")
       .value
@@ -1988,16 +2571,24 @@ function renderTracker() {
     $("responseFilter")
       .value;
 
-  const rows =
+  const sort =
+    $("trackerSort")
+      .value;
+
+
+  let rows =
     jobs.filter(
       j => {
+
         const blob =
           [
             j.company,
             j.role,
             j.recruiter,
             j.location,
-            j.notes
+            stripHtml(
+              j.notes
+            )
           ]
             .join(" ")
             .toLowerCase();
@@ -2020,148 +2611,226 @@ function renderTracker() {
             j.heardBack === rf
           )
         );
+
       }
     );
 
+
+  rows =
+    rows
+      .slice()
+      .sort(
+        (
+          a,
+          b
+        ) => {
+
+          if (
+            sort === "oldest"
+          ) {
+
+            return String(
+              a.dateApplied ||
+              "9999"
+            )
+              .localeCompare(
+                String(
+                  b.dateApplied ||
+                  "9999"
+                )
+              );
+
+          }
+
+
+          if (
+            sort === "company"
+          ) {
+
+            return a.company
+              .localeCompare(
+                b.company
+              );
+
+          }
+
+
+          return String(
+            b.dateApplied ||
+            ""
+          )
+            .localeCompare(
+              String(
+                a.dateApplied ||
+                ""
+              )
+            );
+
+        }
+      );
+
+
   $("jobRows")
     .innerHTML =
-      rows.map(
-        j => `
-          <tr>
+      rows
+        .map(
+          j => `
+            <tr>
 
-            <td>
-              <div class="company">
-                ${esc(j.company)}
-              </div>
+              <td>
 
-              <div class="role">
-                ${esc(j.role)}
-              </div>
-            </td>
+                <div class="company">
+                  ${esc(
+                    j.company
+                  )}
+                </div>
 
-            <td>
-              <span class="pill">
-                ${esc(j.status)}
-              </span>
-            </td>
+                <div class="role">
+                  ${esc(
+                    j.role
+                  )}
+                </div>
 
-            <td>
-              <span class="pill">
-                ${esc(j.source)}
-              </span>
-            </td>
+              </td>
 
-            <td>
-              ${fmtDate(
-                j.dateApplied
-              )}
-            </td>
+              <td>
+                <span class="pill">
+                  ${esc(
+                    j.status
+                  )}
+                </span>
+              </td>
 
-            <td>
-              ${fmtDate(
-                j.recruiterScreenDate
-              )}
-            </td>
+              <td>
+                <span class="pill">
+                  ${esc(
+                    j.source
+                  )}
+                </span>
+              </td>
 
-            <td>
-              ${fmtDate(
-                j.interviewDate
-              )}
-            </td>
+              <td>
+                ${fmtDate(
+                  j.dateApplied
+                )}
+              </td>
 
-            <td>
-              ${esc(
-                j.heardBack
-              )}
-            </td>
+              <td>
+                ${fmtDate(
+                  j.recruiterScreenDate
+                )}
+              </td>
 
-            <td>
-              ${fmtDate(
-                j.dateHeardBack
-              )}
-            </td>
+              <td>
+                ${fmtDate(
+                  j.interviewDate
+                )}
+              </td>
 
-            <td>
-              ${esc(
-                comp(j)
-              )}
-            </td>
+              <td>
+                ${esc(
+                  j.heardBack
+                )}
+              </td>
 
-            <td>
-              ${
-                j.recruiter
-                  ? `
-                    <strong>
-                      ${esc(
-                        j.recruiter
-                      )}
-                    </strong>
-                    <br>
-                    <span class="muted">
-                      ${esc(
-                        j.recruiterContact
-                      )}
-                    </span>
-                  `
-                  : "—"
-              }
-            </td>
+              <td>
+                ${fmtDate(
+                  j.dateHeardBack
+                )}
+              </td>
 
-            <td>
-              ${esc(
-                [
-                  j.location,
-                  j.workArrangement
-                ]
-                  .filter(Boolean)
-                  .join(" • ") ||
-                "—"
-              )}
-            </td>
+              <td>
+                ${esc(
+                  comp(j)
+                )}
+              </td>
 
-            <td>
-              ${
-                j.jobUrl
-                  ? `
-                    <a
-                      class="link"
-                      href="${esc(
-                        j.jobUrl
-                      )}"
-                      target="_blank"
-                      rel="noopener"
-                    >
-                      Open
-                    </a>
-                  `
-                  : "—"
-              }
-            </td>
+              <td>
 
-            <td>
-              <div class="row-actions">
+                ${
+                  j.recruiter
+                    ? `
+                      <strong>
+                        ${esc(
+                          j.recruiter
+                        )}
+                      </strong>
 
-                <button
-                  class="secondary"
-                  onclick="openJob('${j.id}')"
-                >
-                  Edit
-                </button>
+                      <br>
 
-                <button
-                  class="danger"
-                  onclick="deleteJob('${j.id}')"
-                >
-                  Delete
-                </button>
+                      <span class="muted">
+                        ${esc(
+                          j.recruiterContact
+                        )}
+                      </span>
+                    `
+                    : "—"
+                }
 
-              </div>
-            </td>
+              </td>
 
-          </tr>
-        `
-      )
-      .join("");
+              <td>
+
+                ${esc(
+                  [
+                    j.location,
+                    j.workArrangement
+                  ]
+                    .filter(Boolean)
+                    .join(" • ") ||
+                  "—"
+                )}
+
+              </td>
+
+              <td>
+
+                ${
+                  j.jobUrl
+                    ? `
+                      <a
+                        class="link"
+                        href="${esc(
+                          j.jobUrl
+                        )}"
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        Open
+                      </a>
+                    `
+                    : "—"
+                }
+
+              </td>
+
+              <td>
+
+                <div class="row-actions">
+
+                  <button
+                    class="secondary"
+                    onclick="openJob('${j.id}')"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    class="danger"
+                    onclick="deleteJob('${j.id}')"
+                  >
+                    Delete
+                  </button>
+
+                </div>
+
+              </td>
+
+            </tr>
+          `
+        )
+        .join("");
+
 
   $("empty")
     .classList
@@ -2170,18 +2839,23 @@ function renderTracker() {
       !!rows.length
     );
 
+
   updateStats();
   updateActivity();
+
 }
 
+
 function updateStats() {
+
   const total =
     jobs.length;
 
   const applied =
     jobs.filter(
       j =>
-        j.source === "Applied"
+        j.source ===
+        "Applied"
     )
       .length;
 
@@ -2210,9 +2884,11 @@ function updateStats() {
   const heard =
     jobs.filter(
       j =>
-        j.heardBack === "Yes"
+        j.heardBack ===
+        "Yes"
     )
       .length;
+
 
   $("totalCount")
     .textContent =
@@ -2239,9 +2915,12 @@ function updateStats() {
             100
           ) + "%"
         : "0%";
+
 }
 
+
 function updateActivity() {
+
   const now =
     new Date();
 
@@ -2267,23 +2946,25 @@ function updateActivity() {
       12
     );
 
+
   const count =
     (
-      f,
-      s,
-      e,
-      p = () => true
+      field,
+      start,
+      end,
+      predicate = () => true
     ) =>
       jobs.filter(
         j =>
-          p(j) &&
+          predicate(j) &&
           inRange(
-            j[f],
-            s,
-            e
+            j[field],
+            start,
+            end
           )
       )
         .length;
+
 
   const aw =
     count(
@@ -2333,6 +3014,7 @@ function updateActivity() {
       me
     );
 
+
   $("appsWeek")
     .textContent =
       aw;
@@ -2357,6 +3039,7 @@ function updateActivity() {
     .textContent =
       im;
 
+
   $("appsPace")
     .textContent =
       `${am} application${
@@ -2364,6 +3047,7 @@ function updateActivity() {
           ? ""
           : "s"
       } this month`;
+
 
   $("screensPace")
     .textContent =
@@ -2373,6 +3057,7 @@ function updateActivity() {
           : "s"
       } this month`;
 
+
   $("interviewsPace")
     .textContent =
       `${im} interview${
@@ -2380,6 +3065,7 @@ function updateActivity() {
           ? ""
           : "s"
       } this month`;
+
 
   $("activityPeriodLabel")
     .textContent =
@@ -2393,11 +3079,14 @@ function updateActivity() {
             "numeric"
         }
       );
+
 }
+
 
 function openJob(
   id = null
 ) {
+
   $("jobForm")
     .reset();
 
@@ -2405,13 +3094,20 @@ function openJob(
     .value =
       "";
 
+  $("notesEditor")
+    .innerHTML =
+      "";
+
+
   $("modalTitle")
     .textContent =
       id
         ? "Edit Job"
         : "Add Job";
 
+
   if (id) {
+
     const j =
       jobs.find(
         x =>
@@ -2422,19 +3118,32 @@ function openJob(
       return;
     }
 
+
     $("editId")
       .value =
         id;
 
+
     fields.forEach(
       f => {
+
         if ($(f)) {
+
           $(f).value =
             j[f] ?? "";
+
         }
+
       }
     );
+
+
+    $("notesEditor")
+      .innerHTML =
+        j.notes || "";
+
   } else {
+
     $("source")
       .value =
         "Applied";
@@ -2450,15 +3159,20 @@ function openJob(
     $("dateApplied")
       .value =
         todayISO();
+
   }
+
 
   $("jobDialog")
     .showModal();
+
 }
+
 
 async function deleteJob(
   id
 ) {
+
   if (
     !confirm(
       "Delete this job?"
@@ -2466,6 +3180,7 @@ async function deleteJob(
   ) {
     return;
   }
+
 
   const {
     error
@@ -2482,18 +3197,25 @@ async function deleteJob(
         currentUser.id
       );
 
+
   if (error) {
+
     alert(
       error.message
     );
 
     return;
+
   }
 
+
   await loadJobs();
+
 }
 
+
 function discoveryComp(j) {
+
   const lo =
     money(
       j.salaryMin
@@ -2514,38 +3236,47 @@ function discoveryComp(j) {
       : hi
         ? `Up to ${hi}`
         : "—";
+
 }
 
+
 function renderDiscovery() {
+
   const q =
     $("discSearch")
       .value
       .toLowerCase();
 
-  const d =
+  const decision =
     $("discDecisionFilter")
       .value;
 
-  const min =
+  const minMatch =
     Number(
       $("discMatchFilter")
         .value ||
       0
     );
 
-  const age =
+  const maxAge =
     Number(
       $("discAgeFilter")
         .value ||
       0
     );
 
+  const sort =
+    $("discSort")
+      .value;
+
   const now =
     new Date();
 
-  const rows =
+
+  let rows =
     discoveredJobs.filter(
       j => {
+
         const blob =
           [
             j.company,
@@ -2558,6 +3289,7 @@ function renderDiscovery() {
             .join(" ")
             .toLowerCase();
 
+
         if (
           q &&
           !blob.includes(q)
@@ -2565,205 +3297,346 @@ function renderDiscovery() {
           return false;
         }
 
+
         if (
-          d &&
-          j.decision !== d
+          decision &&
+          j.decision !== decision
         ) {
           return false;
         }
 
+
         if (
-          min &&
+          minMatch &&
           Number(
-            j.matchScore || 0
-          ) < min
+            j.matchScore ||
+            0
+          ) <
+          minMatch
         ) {
           return false;
         }
 
+
         if (
-          age &&
-          j.postedDate
+          maxAge
         ) {
-          const pd =
+
+          if (
+            !j.postedDate
+          ) {
+            return false;
+          }
+
+
+          const posted =
             parseDate(
               j.postedDate
             );
 
-          if (
-            pd &&
+
+          if (!posted) {
+            return false;
+          }
+
+
+          const ageDays =
             (
-              now - pd
+              now -
+              posted
             ) /
-            86400000 >
-            age
+            86400000;
+
+
+          if (
+            ageDays >
+            maxAge
           ) {
             return false;
           }
+
         }
 
+
         return true;
+
       }
     );
 
+
+  rows =
+    rows
+      .slice()
+      .sort(
+        (
+          a,
+          b
+        ) => {
+
+          if (
+            sort ===
+            "posted_asc"
+          ) {
+
+            return String(
+              a.postedDate ||
+              "9999"
+            )
+              .localeCompare(
+                String(
+                  b.postedDate ||
+                  "9999"
+                )
+              );
+
+          }
+
+
+          if (
+            sort ===
+            "match_desc"
+          ) {
+
+            return (
+              Number(
+                b.matchScore ||
+                0
+              ) -
+              Number(
+                a.matchScore ||
+                0
+              )
+            );
+
+          }
+
+
+          if (
+            sort ===
+            "match_asc"
+          ) {
+
+            return (
+              Number(
+                a.matchScore ||
+                0
+              ) -
+              Number(
+                b.matchScore ||
+                0
+              )
+            );
+
+          }
+
+
+          if (
+            sort ===
+            "company"
+          ) {
+
+            return a.company
+              .localeCompare(
+                b.company
+              );
+
+          }
+
+
+          return String(
+            b.postedDate ||
+            ""
+          )
+            .localeCompare(
+              String(
+                a.postedDate ||
+                ""
+              )
+            );
+
+        }
+      );
+
+
   $("discoveryRows")
     .innerHTML =
-      rows.map(
-        j => `
-          <tr>
+      rows
+        .map(
+          j => `
+            <tr>
 
-            <td>
-              <div class="company">
-                ${esc(
-                  j.company
-                )}
-              </div>
+              <td>
 
-              <div class="role">
-                ${esc(
-                  j.role
-                )}
-              </div>
+                <div class="company">
+                  ${esc(
+                    j.company
+                  )}
+                </div>
 
-              <div class="muted">
-                ${esc(
-                  j.sourceSite
-                )}
-              </div>
-            </td>
+                <div class="role">
+                  ${esc(
+                    j.role
+                  )}
+                </div>
 
-            <td>
-              ${
-                j.matchScore !== ""
-                  ? `
-                    <span
-                      class="match ${
-                        Number(
+                <div class="muted">
+                  ${esc(
+                    j.sourceSite
+                  )}
+                </div>
+
+              </td>
+
+
+              <td>
+
+                ${
+                  j.matchScore !== ""
+                    ? `
+                      <span
+                        class="match ${
+                          Number(
+                            j.matchScore
+                          ) >= 80
+                            ? "high"
+                            : Number(
+                                j.matchScore
+                              ) >= 60
+                              ? "mid"
+                              : "low"
+                        }"
+                      >
+                        ${esc(
                           j.matchScore
-                        ) >= 80
-                          ? "high"
-                          : Number(
-                              j.matchScore
-                            ) >= 60
-                            ? "mid"
-                            : "low"
-                      }"
-                    >
-                      ${esc(
-                        j.matchScore
-                      )}%
-                    </span>
-                  `
-                  : "—"
-              }
-            </td>
+                        )}%
+                      </span>
+                    `
+                    : "—"
+                }
 
-            <td>
-              ${fmtDate(
-                j.postedDate
-              )}
-            </td>
+              </td>
 
-            <td>
-              ${esc(
-                [
-                  j.location,
-                  j.workArrangement
-                ]
-                  .filter(Boolean)
-                  .join(" • ") ||
-                "—"
-              )}
-            </td>
 
-            <td>
-              ${esc(
-                discoveryComp(j)
-              )}
-            </td>
-
-            <td>
-              <span class="pill">
-                ${esc(
-                  j.decision
+              <td>
+                ${fmtDate(
+                  j.postedDate
                 )}
-              </span>
-            </td>
+              </td>
 
-            <td>
-              ${esc(
-                j.matchSummary ||
-                j.passReason ||
-                j.passNote ||
-                "—"
-              )}
-            </td>
 
-            <td>
+              <td>
 
-              <div class="row-actions">
+                ${esc(
+                  [
+                    j.location,
+                    j.workArrangement
+                  ]
+                    .filter(Boolean)
+                    .join(" • ") ||
+                  "—"
+                )}
 
-                ${
-                  j.jobUrl
-                    ? `
-                      <button
-                        class="primary"
-                        onclick="openApply('${j.id}')"
-                      >
-                        Open / Apply
-                      </button>
-                    `
-                    : ""
-                }
+              </td>
 
-                ${
-                  (
-                    j.decision !==
-                    "considering"
-                  ) &&
-                  (
-                    j.decision !==
-                    "applied"
-                  )
-                    ? `
-                      <button
-                        class="secondary"
-                        onclick="setConsidering('${j.id}')"
-                      >
-                        Considering
-                      </button>
-                    `
-                    : ""
-                }
 
-                ${
-                  (
-                    j.decision !==
-                    "passed"
-                  ) &&
-                  (
-                    j.decision !==
-                    "applied"
-                  )
-                    ? `
-                      <button
-                        class="danger"
-                        onclick="openPass('${j.id}')"
-                      >
-                        Pass
-                      </button>
-                    `
-                    : ""
-                }
+              <td>
+                ${esc(
+                  discoveryComp(j)
+                )}
+              </td>
 
-              </div>
 
-            </td>
+              <td>
 
-          </tr>
-        `
-      )
-      .join("");
+                <span class="pill">
+                  ${esc(
+                    j.decision
+                  )}
+                </span>
+
+              </td>
+
+
+              <td>
+
+                ${esc(
+                  j.matchSummary ||
+                  j.passReason ||
+                  j.passNote ||
+                  "—"
+                )}
+
+              </td>
+
+
+              <td>
+
+                <div class="row-actions">
+
+                  ${
+                    j.jobUrl
+                      ? `
+                        <button
+                          class="primary"
+                          onclick="openApply('${j.id}')"
+                        >
+                          Open / Apply
+                        </button>
+                      `
+                      : ""
+                  }
+
+
+                  ${
+                    (
+                      j.decision !==
+                      "considering"
+                    ) &&
+                    (
+                      j.decision !==
+                      "applied"
+                    )
+                      ? `
+                        <button
+                          class="secondary"
+                          onclick="setConsidering('${j.id}')"
+                        >
+                          Considering
+                        </button>
+                      `
+                      : ""
+                  }
+
+
+                  ${
+                    (
+                      j.decision !==
+                      "passed"
+                    ) &&
+                    (
+                      j.decision !==
+                      "applied"
+                    )
+                      ? `
+                        <button
+                          class="danger"
+                          onclick="openPass('${j.id}')"
+                        >
+                          Pass
+                        </button>
+                      `
+                      : ""
+                  }
+
+                </div>
+
+              </td>
+
+            </tr>
+          `
+        )
+        .join("");
+
 
   $("discoveryEmpty")
     .classList
@@ -2772,65 +3645,69 @@ function renderDiscovery() {
       !!rows.length
     );
 
+
   $("discNew")
     .textContent =
-      discoveredJobs
-        .filter(
-          j =>
-            j.decision ===
-            "new"
-        )
-        .length;
-
-  $("discConsidering")
-    .textContent =
-      discoveredJobs
-        .filter(
-          j =>
-            j.decision ===
-            "considering"
-        )
-        .length;
-
-  $("discApplied")
-    .textContent =
-      discoveredJobs
-        .filter(
-          j =>
-            j.decision ===
-            "applied"
-        )
-        .length;
-
-  $("discPassed")
-    .textContent =
-      discoveredJobs
-        .filter(
-          j =>
-            j.decision ===
-            "passed"
-        )
-        .length;
-
-  const n =
-    discoveredJobs
-      .filter(
+      discoveredJobs.filter(
         j =>
           j.decision ===
           "new"
       )
+        .length;
+
+
+  $("discConsidering")
+    .textContent =
+      discoveredJobs.filter(
+        j =>
+          j.decision ===
+          "considering"
+      )
+        .length;
+
+
+  $("discApplied")
+    .textContent =
+      discoveredJobs.filter(
+        j =>
+          j.decision ===
+          "applied"
+      )
+        .length;
+
+
+  $("discPassed")
+    .textContent =
+      discoveredJobs.filter(
+        j =>
+          j.decision ===
+          "passed"
+      )
+        .length;
+
+
+  const n =
+    discoveredJobs.filter(
+      j =>
+        j.decision ===
+        "new"
+    )
       .length;
+
 
   $("newDiscoveryBadge")
     .textContent =
       n
         ? `(${n})`
         : "";
+
 }
+
 
 async function setConsidering(
   id
 ) {
+
   const {
     error
   } =
@@ -2851,18 +3728,25 @@ async function setConsidering(
         currentUser.id
       );
 
+
   if (error) {
+
     alert(
       error.message
     );
 
     return;
+
   }
 
+
   await loadDiscovery();
+
 }
 
+
 function prepPassReasons() {
+
   selectedPassReason =
     "";
 
@@ -2870,32 +3754,41 @@ function prepPassReasons() {
     .value =
       "";
 
+
   $("reasonButtons")
     .innerHTML =
       PASS_REASONS
         .map(
-          r => `
+          reason => `
             <button
               type="button"
-              data-reason="${esc(r)}"
+              data-reason="${esc(
+                reason
+              )}"
             >
-              ${esc(r)}
+              ${esc(
+                reason
+              )}
             </button>
           `
         )
         .join("");
+
 
   $("reasonButtons")
     .querySelectorAll(
       "button"
     )
     .forEach(
-      b =>
-        b.addEventListener(
+      button => {
+
+        button.addEventListener(
           "click",
           () => {
+
             selectedPassReason =
-              b.dataset.reason;
+              button.dataset.reason;
+
 
             $("reasonButtons")
               .querySelectorAll(
@@ -2909,29 +3802,38 @@ function prepPassReasons() {
                     )
               );
 
-            b.classList
+
+            button.classList
               .add(
                 "selected"
               );
+
           }
-        )
+        );
+
+      }
     );
+
 }
+
 
 function openApply(
   id
 ) {
+
   activeDiscoveryJob =
     discoveredJobs.find(
       j =>
         j.id === id
     );
 
+
   if (
     !activeDiscoveryJob
   ) {
     return;
   }
+
 
   window.open(
     activeDiscoveryJob.jobUrl,
@@ -2939,55 +3841,75 @@ function openApply(
     "noopener"
   );
 
+
   $("applyConfirmJob")
     .textContent =
       `${activeDiscoveryJob.company} — ${activeDiscoveryJob.role}`;
 
+
   $("passReasonArea")
     .classList
-    .add("hidden");
+    .add(
+      "hidden"
+    );
+
 
   prepPassReasons();
 
+
   $("applyConfirmDialog")
     .showModal();
+
 }
+
 
 function openPass(
   id
 ) {
+
   activeDiscoveryJob =
     discoveredJobs.find(
       j =>
         j.id === id
     );
 
+
   if (
     !activeDiscoveryJob
   ) {
     return;
   }
+
 
   $("applyConfirmJob")
     .textContent =
       `${activeDiscoveryJob.company} — ${activeDiscoveryJob.role}`;
 
+
   prepPassReasons();
+
 
   $("passReasonArea")
     .classList
-    .remove("hidden");
+    .remove(
+      "hidden"
+    );
+
 
   $("applyConfirmDialog")
     .showModal();
+
 }
 
+
 async function confirmApplied() {
+
   if (
     !activeDiscoveryJob
   ) {
     return;
   }
+
 
   const dupe =
     jobs.find(
@@ -3010,13 +3932,17 @@ async function confirmApplied() {
         )
     );
 
+
   if (dupe) {
+
     alert(
       "This job already appears in your tracker."
     );
 
     return;
+
   }
+
 
   const row = {
     user_id:
@@ -3066,6 +3992,7 @@ async function confirmApplied() {
       null
   };
 
+
   const {
     data,
     error
@@ -3076,13 +4003,17 @@ async function confirmApplied() {
       .select("id")
       .single();
 
+
   if (error) {
+
     alert(
       error.message
     );
 
     return;
+
   }
+
 
   await sb
     .from(
@@ -3108,30 +4039,39 @@ async function confirmApplied() {
       currentUser.id
     );
 
+
   $("applyConfirmDialog")
     .close();
+
 
   await Promise.all([
     loadJobs(),
     loadDiscovery()
   ]);
 
+
   switchView(
     "tracker"
   );
+
 }
 
+
 async function savePass() {
+
   if (
     !activeDiscoveryJob ||
     !selectedPassReason
   ) {
+
     alert(
       "Choose a reason first."
     );
 
     return;
+
   }
+
 
   const {
     error
@@ -3162,31 +4102,37 @@ async function savePass() {
         currentUser.id
       );
 
+
   if (error) {
+
     alert(
       error.message
     );
 
     return;
+
   }
+
 
   $("applyConfirmDialog")
     .close();
 
+
   await loadDiscovery();
+
 }
+
 
 function showInsight(
   title,
   rows,
   note
 ) {
-  const dlg =
-    $("activityDialog");
 
   $("activityDialogTitle")
     .textContent =
       title;
+
 
   const active =
     rows.filter(
@@ -3202,9 +4148,11 @@ function showInsight(
     )
       .length;
 
+
   $("activityInsightSummary")
     .innerHTML = `
       <div class="insight-box">
+
         <div class="k">
           Showing
         </div>
@@ -3212,9 +4160,12 @@ function showInsight(
         <div class="v">
           ${rows.length}
         </div>
+
       </div>
 
+
       <div class="insight-box">
+
         <div class="k">
           Still active
         </div>
@@ -3222,9 +4173,12 @@ function showInsight(
         <div class="v">
           ${active}
         </div>
+
       </div>
 
+
       <div class="insight-box">
+
         <div class="k">
           Rejected
         </div>
@@ -3239,18 +4193,24 @@ function showInsight(
               .length
           }
         </div>
+
       </div>
     `;
 
+
   $("activityInsightPattern")
-    .innerHTML =
-      `
-        <strong>
-          What this includes
-        </strong>
-        <br>
-        ${esc(note)}
-      `;
+    .innerHTML = `
+      <strong>
+        What this includes
+      </strong>
+
+      <br>
+
+      ${esc(
+        note
+      )}
+    `;
+
 
   $("activityInsightList")
     .innerHTML =
@@ -3261,11 +4221,19 @@ function showInsight(
                 <div class="activity-detail-row">
 
                   <div>
+
                     <div class="title">
-                      ${esc(j.company)} · ${esc(j.role)}
+                      ${esc(
+                        j.company
+                      )}
+                      ·
+                      ${esc(
+                        j.role
+                      )}
                     </div>
 
                     <div class="sub">
+
                       ${esc(
                         [
                           j.status,
@@ -3275,16 +4243,20 @@ function showInsight(
                           .filter(Boolean)
                           .join(" · ")
                       )}
+
                     </div>
+
                   </div>
 
                   <div class="date">
+
                     ${fmtDate(
                       j.interviewDate ||
                       j.recruiterScreenDate ||
                       j.dateHeardBack ||
                       j.dateApplied
                     )}
+
                   </div>
 
                 </div>
@@ -3297,12 +4269,17 @@ function showInsight(
           </div>
         `;
 
-  dlg.showModal();
+
+  $("activityDialog")
+    .showModal();
+
 }
+
 
 function activityInsight(
   kind
 ) {
+
   const now =
     new Date();
 
@@ -3322,10 +4299,12 @@ function activityInsight(
       12
     );
 
+
   if (
     kind ===
     "applications"
   ) {
+
     showInsight(
       "Applications this month",
 
@@ -3342,12 +4321,15 @@ function activityInsight(
 
       "Applications you submitted directly."
     );
+
   }
+
 
   if (
     kind ===
     "screens"
   ) {
+
     showInsight(
       "Recruiter Screens this month",
 
@@ -3362,12 +4344,15 @@ function activityInsight(
 
       "Recruiter screens logged this month."
     );
+
   }
+
 
   if (
     kind ===
     "interviews"
   ) {
+
     showInsight(
       "Interviews this month",
 
@@ -3382,27 +4367,35 @@ function activityInsight(
 
       "Interviews logged this month."
     );
+
   }
+
 }
+
 
 function summaryInsight(
   kind
 ) {
+
   if (
     kind ===
     "total"
   ) {
+
     showInsight(
       "Total Opportunities",
       jobs.slice(),
       "Every opportunity currently saved in your tracker."
     );
+
   }
+
 
   if (
     kind ===
     "applied"
   ) {
+
     showInsight(
       "Applications Submitted",
 
@@ -3414,12 +4407,15 @@ function summaryInsight(
 
       "Opportunities you submitted yourself."
     );
+
   }
+
 
   if (
     kind ===
     "sourced"
   ) {
+
     showInsight(
       "Recruiter Sourced",
 
@@ -3431,12 +4427,15 @@ function summaryInsight(
 
       "Opportunities that started from recruiter outreach."
     );
+
   }
+
 
   if (
     kind ===
     "interviewing"
   ) {
+
     showInsight(
       "Currently Interviewing",
 
@@ -3454,12 +4453,15 @@ function summaryInsight(
 
       "Active pipelines in recruiter screen, interviewing, or final round."
     );
+
   }
+
 
   if (
     kind ===
     "response"
   ) {
+
     showInsight(
       "Response Rate",
 
@@ -3471,35 +4473,47 @@ function summaryInsight(
 
       "Opportunities marked as having received a response."
     );
+
   }
+
 }
+
 
 function wireKeyboard(
   el,
   fn
 ) {
+
   el.addEventListener(
     "click",
     fn
   );
 
+
   el.addEventListener(
     "keydown",
     e => {
+
       if (
         e.key ===
         "Enter" ||
         e.key ===
         " "
       ) {
+
         e.preventDefault();
         fn();
+
       }
+
     }
   );
+
 }
 
+
 function exportCSV() {
+
   const headers = [
     "Company",
     "Role",
@@ -3523,10 +4537,14 @@ function exportCSV() {
     "Notes"
   ];
 
-  const keys =
-    fields;
 
-  const q =
+  const keys = [
+    ...fields,
+    "notes"
+  ];
+
+
+  const quote =
     v =>
       `"${String(
         v ?? ""
@@ -3536,25 +4554,31 @@ function exportCSV() {
           '""'
         )}"`;
 
+
   const csv =
     [
       headers
-        .map(q)
+        .map(quote)
         .join(","),
 
       ...jobs.map(
         j =>
           keys
             .map(
-              k =>
-                q(
-                  j[k]
+              key =>
+                quote(
+                  key === "notes"
+                    ? stripHtml(
+                        j[key]
+                      )
+                    : j[key]
                 )
             )
             .join(",")
       )
     ]
       .join("\n");
+
 
   const blob =
     new Blob(
@@ -3565,15 +4589,18 @@ function exportCSV() {
       }
     );
 
+
   const url =
     URL.createObjectURL(
       blob
     );
 
+
   const a =
     document.createElement(
       "a"
     );
+
 
   a.href =
     url;
@@ -3583,17 +4610,22 @@ function exportCSV() {
 
   a.click();
 
+
   URL.revokeObjectURL(
     url
   );
+
 }
+
 
 function importCSV(
   file
 ) {
+
   if (!file) {
     return;
   }
+
 
   Papa.parse(
     file,
@@ -3605,7 +4637,8 @@ function importCSV(
         true,
 
       complete:
-        async r => {
+        async result => {
+
           const hm = {
             "Company":
               "company",
@@ -3668,12 +4701,15 @@ function importCSV(
               "notes"
           };
 
+
           const rows = [];
+
 
           for (
             const row
-            of r.data || []
+            of result.data || []
           ) {
+
             if (
               !row.Company ||
               !row.Role
@@ -3681,67 +4717,87 @@ function importCSV(
               continue;
             }
 
+
             const ui = {};
+
 
             for (
               const [
-                h,
-                f
+                header,
+                field
               ]
               of Object.entries(
                 hm
               )
             ) {
-              ui[f] =
+
+              ui[field] =
                 String(
-                  row[h] ??
+                  row[header] ??
                   ""
                 )
                   .trim();
+
             }
+
 
             rows.push({
               ...toDb(ui),
 
+              notes:
+                ui.notes ||
+                null,
+
               user_id:
                 currentUser.id
             });
+
           }
+
 
           if (
             rows.length
           ) {
+
             const {
               error
             } =
               await sb
                 .from("jobs")
-                .insert(
-                  rows
-                );
+                .insert(rows);
+
 
             if (error) {
+
               alert(
                 error.message
               );
 
               return;
+
             }
 
+
             await loadJobs();
+
           }
+
         }
     }
   );
+
 }
+
 
 $("signInBtn")
   .addEventListener(
     "click",
     async () => {
+
       $("authMsg")
         .textContent =
           "Signing in...";
+
 
       const {
         data,
@@ -3759,28 +4815,36 @@ $("signInBtn")
                 .value
           });
 
+
       if (error) {
+
         $("authMsg")
           .textContent =
             error.message;
 
         return;
+
       }
+
 
       $("authMsg")
         .textContent =
           "";
 
+
       await enterApp(
         data.user
       );
+
     }
   );
+
 
 $("signUpBtn")
   .addEventListener(
     "click",
     async () => {
+
       const {
         error
       } =
@@ -3796,24 +4860,30 @@ $("signUpBtn")
                 .value
           });
 
+
       $("authMsg")
         .textContent =
           error
             ? error.message
             : "Account created. Check your email if confirmation is required.";
+
     }
   );
+
 
 $("signOutBtn")
   .addEventListener(
     "click",
     async () => {
+
       await sb.auth
         .signOut();
 
       location.reload();
+
     }
   );
+
 
 $("tabTracker")
   .addEventListener(
@@ -3824,6 +4894,7 @@ $("tabTracker")
       )
   );
 
+
 $("tabDiscovery")
   .addEventListener(
     "click",
@@ -3833,12 +4904,14 @@ $("tabDiscovery")
       )
   );
 
+
 $("addJobBtn")
   .addEventListener(
     "click",
     () =>
       openJob()
   );
+
 
 $("closeJobDialog")
   .addEventListener(
@@ -3848,6 +4921,7 @@ $("closeJobDialog")
         .close()
   );
 
+
 $("cancelJob")
   .addEventListener(
     "click",
@@ -3856,22 +4930,29 @@ $("cancelJob")
         .close()
   );
 
+
 $("jobForm")
   .addEventListener(
     "submit",
     async e => {
+
       e.preventDefault();
+
 
       const ui = {};
 
+
       fields.forEach(
         f => {
+
           ui[f] =
             $(f)?.value
               .trim() ??
             "";
+
         }
       );
+
 
       if (
         !ui.company ||
@@ -3880,16 +4961,25 @@ $("jobForm")
         return;
       }
 
+
       const payload = {
         ...toDb(ui),
+
+        notes:
+          $("notesEditor")
+            .innerHTML
+            .trim() ||
+          null,
 
         user_id:
           currentUser.id
       };
 
+
       const id =
         $("editId")
           .value;
+
 
       const {
         error
@@ -3915,26 +5005,34 @@ $("jobForm")
                 payload
               );
 
+
       if (error) {
+
         alert(
           error.message
         );
 
         return;
+
       }
+
 
       $("jobDialog")
         .close();
 
+
       await loadJobs();
+
     }
   );
+
 
 [
   "search",
   "statusFilter",
   "sourceFilter",
-  "responseFilter"
+  "responseFilter",
+  "trackerSort"
 ]
   .forEach(
     id =>
@@ -3948,11 +5046,13 @@ $("jobForm")
         )
   );
 
+
 [
   "discSearch",
   "discDecisionFilter",
   "discMatchFilter",
-  "discAgeFilter"
+  "discAgeFilter",
+  "discSort"
 ]
   .forEach(
     id =>
@@ -3967,6 +5067,7 @@ $("jobForm")
         )
   );
 
+
 $("importBtn")
   .addEventListener(
     "click",
@@ -3974,6 +5075,7 @@ $("importBtn")
       $("csvFileInput")
         .click()
   );
+
 
 $("csvFileInput")
   .addEventListener(
@@ -3984,11 +5086,69 @@ $("csvFileInput")
       )
   );
 
+
 $("exportBtn")
   .addEventListener(
     "click",
     exportCSV
   );
+
+
+document
+  .querySelectorAll(
+    ".notes-toolbar [data-cmd]"
+  )
+  .forEach(
+    button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          document.execCommand(
+            button.dataset.cmd,
+            false,
+            null
+          );
+
+          $("notesEditor")
+            .focus();
+
+        }
+      );
+
+    }
+  );
+
+
+$("notesLinkBtn")
+  .addEventListener(
+    "click",
+    () => {
+
+      const url =
+        prompt(
+          "Paste the link URL:"
+        );
+
+
+      if (url) {
+
+        document.execCommand(
+          "createLink",
+          false,
+          url
+        );
+
+
+        $("notesEditor")
+          .focus();
+
+      }
+
+    }
+  );
+
 
 wireKeyboard(
   $("activityApplications"),
@@ -3998,6 +5158,7 @@ wireKeyboard(
     )
 );
 
+
 wireKeyboard(
   $("activityScreens"),
   () =>
@@ -4005,6 +5166,7 @@ wireKeyboard(
       "screens"
     )
 );
+
 
 wireKeyboard(
   $("activityInterviews"),
@@ -4014,6 +5176,7 @@ wireKeyboard(
     )
 );
 
+
 wireKeyboard(
   $("statTotal"),
   () =>
@@ -4021,6 +5184,7 @@ wireKeyboard(
       "total"
     )
 );
+
 
 wireKeyboard(
   $("statApplied"),
@@ -4030,6 +5194,7 @@ wireKeyboard(
     )
 );
 
+
 wireKeyboard(
   $("statSourced"),
   () =>
@@ -4037,6 +5202,7 @@ wireKeyboard(
       "sourced"
     )
 );
+
 
 wireKeyboard(
   $("statInterviewing"),
@@ -4046,6 +5212,7 @@ wireKeyboard(
     )
 );
 
+
 wireKeyboard(
   $("statResponse"),
   () =>
@@ -4053,6 +5220,7 @@ wireKeyboard(
       "response"
     )
 );
+
 
 $("activityDialogClose")
   .addEventListener(
@@ -4062,6 +5230,7 @@ $("activityDialogClose")
         .close()
   );
 
+
 $("closeApplyDialog")
   .addEventListener(
     "click",
@@ -4070,28 +5239,36 @@ $("closeApplyDialog")
         .close()
   );
 
+
 $("yesAppliedBtn")
   .addEventListener(
     "click",
     confirmApplied
   );
 
+
 $("notYetBtn")
   .addEventListener(
     "click",
     async () => {
+
       if (
         activeDiscoveryJob
       ) {
+
         await setConsidering(
           activeDiscoveryJob.id
         );
+
       }
+
 
       $("applyConfirmDialog")
         .close();
+
     }
   );
+
 
 $("decidedNoBtn")
   .addEventListener(
@@ -4104,13 +5281,16 @@ $("decidedNoBtn")
         )
   );
 
+
 $("savePassBtn")
   .addEventListener(
     "click",
     savePass
   );
 
+
 (async () => {
+
   const {
     data: {
       session
@@ -4119,13 +5299,17 @@ $("savePassBtn")
     await sb.auth
       .getSession();
 
+
   if (
     session?.user
   ) {
+
     await enterApp(
       session.user
     );
+
   }
+
 })();
 </script>
 
