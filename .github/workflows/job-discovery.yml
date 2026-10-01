@@ -11,21 +11,110 @@ permissions:
 jobs:
   discover:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     steps:
-      - name: Check out repository
+      - name: Check out tracker repository
         uses: actions/checkout@v4
+
+      - name: Check out multi-ATS harvester
+        uses: actions/checkout@v4
+        with:
+          repository: outscal/OpenJobs
+          path: _vendor/openjobs
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
         run: pip install requests beautifulsoup4
 
-      - name: Discover jobs and resolve direct ATS links
+      - name: Install harvester dependencies
+        working-directory: _vendor/openjobs
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Create neutral harvester config
+        working-directory: _vendor/openjobs
+        shell: bash
+        run: |
+          cat > portals.yml <<'YAML'
+          title_filter:
+            positive: []
+            negative: []
+          locations:
+            include: []
+            exclude: []
+          industry_allowlist: []
+          ats_allowlist: []
+          manual_only:
+            - linkedin.com
+            - indeed.com
+            - ziprecruiter.com
+            - glassdoor.com
+            - wellfound.com
+          YAML
+
+      - name: Validate local discovery code
+        shell: bash
+        run: |
+          python -m py_compile scripts/discover_jobs.py
+          python -m py_compile scripts/import_openjobs.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          for p in ("scripts/discover_jobs.py", "scripts/import_openjobs.py"):
+              ast.parse(Path(p).read_text())
+              print("AST OK:", p)
+          PY
+
+      - name: Verify harvester adapters
+        shell: bash
+        run: |
+          test -f _vendor/openjobs/harvest.mjs
+          test -f _vendor/openjobs/data/companies_v2.json
+          test -d _vendor/openjobs/adapters
+          echo "OpenJobs revision: $(git -C _vendor/openjobs rev-parse HEAD)"
+          echo "Adapter files:"
+          find _vendor/openjobs/adapters -maxdepth 1 -type f -name '*.mjs' -printf '%f\n' | sort
+
+      - name: Harvest live jobs from all supported ATS platforms
+        working-directory: _vendor/openjobs
+        env:
+          HARVEST_VERBOSE: "0"
+        run: node harvest.mjs --no-filter
+
+      - name: Locate harvest CSV
+        id: harvest
+        shell: bash
+        run: |
+          FILE="$(find _vendor/openjobs/output -maxdepth 1 -type f -name 'jobs-*.csv' | sort | tail -n 1)"
+          if [ -z "$FILE" ]; then
+            echo "No jobs CSV was produced; creating an empty file so import can exit cleanly."
+            FILE="_vendor/openjobs/output/jobs-empty.csv"
+            mkdir -p _vendor/openjobs/output
+            printf 'company,industry,role,location,remote,department,employment_type,posted_date,ats,detail_url,apply_url,matched_keywords\n' > "$FILE"
+          fi
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+          echo "Using harvest file: $FILE"
+          wc -l "$FILE"
+
+      - name: Import, filter, score, and sync Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_USER_ID: ${{ secrets.SUPABASE_USER_ID }}
+        run: python scripts/import_openjobs.py "${{ steps.harvest.outputs.file }}"
+
+
+      - name: Supplemental discovery for iCIMS, Oracle/Taleo, Eightfold, and direct company careers
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
