@@ -6,6 +6,7 @@ import json
 import html
 import hashlib
 import urllib.parse
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
 from difflib import SequenceMatcher
 
@@ -40,6 +41,19 @@ DIRECT_ATS_HOSTS = {
     "boards.greenhouse.io": "greenhouse",
     "jobs.smartrecruiters.com": "smartrecruiters",
 }
+
+GENERIC_JOB_PATH_MARKERS = (
+    "/careers/job/",
+    "/careers/jobs/",
+    "/career/job/",
+    "/career/jobs/",
+    "/jobs/job/",
+    "/jobs/",
+    "/job/",
+    "/openings/",
+    "/positions/",
+    "/opportunities/",
+)
 
 BLOCKED_HOST_PARTS = [
     "linkedin.",
@@ -211,16 +225,46 @@ def canonical_url(url):
     except Exception:
         return url
 
+def classify_direct_job_url(url):
+    host = host_of(url)
+    path = urllib.parse.urlsplit(url).path.lower() if url else ""
+
+    if not host or any(part in host for part in BLOCKED_HOST_PARTS):
+        return None
+
+    if host in DIRECT_ATS_HOSTS:
+        return DIRECT_ATS_HOSTS[host]
+
+    if host.endswith(".myworkdayjobs.com"):
+        return "workday"
+
+    if host.endswith(".icims.com"):
+        return "icims"
+
+    if host.endswith(".oraclecloud.com") and "/hcmui/candidateexperience/" in path:
+        return "oracle"
+
+    if host.endswith(".taleo.net"):
+        return "taleo"
+
+    if host == "app.eightfold.ai" or host.endswith(".eightfold.ai"):
+        if "/careers" in path or "/job" in path:
+            return "eightfold"
+
+    # Generic direct company-career pages are allowed only when the URL itself
+    # looks like a specific job/careers route. Aggregators are rejected above.
+    if any(marker in path for marker in GENERIC_JOB_PATH_MARKERS):
+        return "company-careers"
+
+    return None
+
 def source_type(url):
-    return DIRECT_ATS_HOSTS.get(host_of(url), "direct")
+    return classify_direct_job_url(url) or "direct"
 
 def is_direct_ats(url):
-    host = host_of(url)
-
-    if any(part in host for part in BLOCKED_HOST_PARTS):
-        return False
-
-    return host in DIRECT_ATS_HOSTS
+    # Historical function name retained because the rest of the collector uses it.
+    # It now means a direct ATS OR a direct company-careers job page.
+    return classify_direct_job_url(url) is not None
 
 def source_key(url):
     return hashlib.sha256(canonical_url(url).encode("utf-8")).hexdigest()[:48]
@@ -555,39 +599,256 @@ def company_slug_variants(company):
 
     return out[:10]
 
-def direct_from_provider_page(url):
+def _jsonld_jobposting(soup):
+    for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        raw = script.string or script.get_text(" ", strip=True)
+        if not raw:
+            continue
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            continue
+
+        items = payload if isinstance(payload, list) else [payload]
+        expanded = []
+        for item in items:
+            if isinstance(item, dict) and isinstance(item.get("@graph"), list):
+                expanded.extend(item["@graph"])
+            else:
+                expanded.append(item)
+
+        for item in expanded:
+            if not isinstance(item, dict):
+                continue
+            typ = item.get("@type")
+            types = typ if isinstance(typ, list) else [typ]
+            if "JobPosting" in types:
+                return item
+    return None
+
+
+def _schema_location(jobposting):
+    if not isinstance(jobposting, dict):
+        return ""
+
+    if str(jobposting.get("jobLocationType") or "").upper() == "TELECOMMUTE":
+        req = jobposting.get("applicantLocationRequirements")
+        reqs = req if isinstance(req, list) else [req]
+        places = []
+        for item in reqs:
+            if not isinstance(item, dict):
+                continue
+            name = clean(item.get("name") or "")
+            if name:
+                places.append(name)
+        return "Remote" + (" - " + ", ".join(places) if places else "")
+
+    locations = jobposting.get("jobLocation")
+    locations = locations if isinstance(locations, list) else [locations]
+    out = []
+    for loc in locations:
+        if not isinstance(loc, dict):
+            continue
+        address = loc.get("address") or {}
+        if not isinstance(address, dict):
+            address = {}
+        bits = [
+            address.get("addressLocality"),
+            address.get("addressRegion"),
+            address.get("addressCountry"),
+        ]
+        text = ", ".join(clean(x) for x in bits if clean(x))
+        if text:
+            out.append(text)
+    return "; ".join(dict.fromkeys(out))
+
+
+def fetch_direct_job_details(url, fallback_title=""):
+    try:
+        r = SESSION.get(url, timeout=REQUEST_TIMEOUT, allow_redirects=True)
+        if r.status_code >= 400:
+            return None
+
+        final_url = canonical_url(r.url)
+        direct_type = classify_direct_job_url(final_url)
+        if not direct_type:
+            return None
+
+        soup = BeautifulSoup(r.text, "html.parser")
+        jp = _jsonld_jobposting(soup)
+
+        title = fallback_title
+        description = ""
+        posted_date = None
+        location = ""
+
+        if jp:
+            title = clean(jp.get("title") or fallback_title)
+            description = clean(
+                BeautifulSoup(str(jp.get("description") or ""), "html.parser").get_text(" ")
+            )
+            posted_date = iso_date(jp.get("datePosted"))
+            location = _schema_location(jp)
+
+        if not title:
+            meta = soup.find("meta", attrs={"property": "og:title"})
+            title = clean(meta.get("content") if meta else "")
+
+        if not description:
+            meta = (
+                soup.find("meta", attrs={"name": "description"})
+                or soup.find("meta", attrs={"property": "og:description"})
+            )
+            description = clean(meta.get("content") if meta else "")
+
+        # Some ATS pages render the full JD server-side without JSON-LD.
+        if len(description) < 180:
+            body_text = clean(soup.get_text(" "))
+            if len(body_text) > len(description):
+                description = body_text[:30000]
+
+        return {
+            "url": final_url,
+            "title": title or fallback_title,
+            "location": location,
+            "posted_date": posted_date,
+            "description": description,
+            "source_type": direct_type,
+            "match_score": 1.0,
+        }
+    except Exception:
+        return None
+
+
+def _candidate_link_score(candidate_url, anchor_text, company, title):
+    direct_type = classify_direct_job_url(candidate_url)
+    if not direct_type:
+        return -1
+
+    score = {
+        "workday": 120,
+        "icims": 120,
+        "oracle": 120,
+        "taleo": 120,
+        "eightfold": 120,
+        "ashby": 115,
+        "lever": 115,
+        "greenhouse": 115,
+        "smartrecruiters": 115,
+        "company-careers": 80,
+    }.get(direct_type, 70)
+
+    anchor_n = norm(anchor_text)
+    url_n = norm(urllib.parse.unquote(candidate_url))
+    title_n = norm(title)
+    company_n = norm(company)
+
+    if any(word in anchor_n for word in ("apply", "view job", "job details", "position")):
+        score += 15
+    if title_n:
+        score += int(25 * title_similarity(title_n, f"{anchor_n} {url_n}"))
+    if company_n and company_n in url_n:
+        score += 8
+    return score
+
+
+def direct_from_provider_page(url, company="", title=""):
     if not url:
         return None
 
     try:
-        r = SESSION.get(
-            url,
-            timeout=REQUEST_TIMEOUT,
-            allow_redirects=True,
-        )
-
+        r = SESSION.get(url, timeout=REQUEST_TIMEOUT, allow_redirects=True)
         r.raise_for_status()
 
         final_url = canonical_url(r.url)
-
         if is_direct_ats(final_url):
-            return final_url
+            return fetch_direct_job_details(final_url, title) or {
+                "url": final_url,
+                "title": title,
+                "location": "",
+                "posted_date": None,
+                "description": "",
+                "source_type": source_type(final_url),
+                "match_score": 1.0,
+            }
 
         soup = BeautifulSoup(r.text, "html.parser")
+        candidates = []
+        seen = set()
 
         for link in soup.find_all("a", href=True):
-            candidate = canonical_url(
-                urllib.parse.urljoin(
-                    final_url,
-                    link.get("href"),
-                )
-            )
+            href = urllib.parse.urljoin(final_url, link.get("href"))
+            candidate = canonical_url(href)
+            if candidate in seen or not is_direct_ats(candidate):
+                continue
+            seen.add(candidate)
+            anchor = clean(link.get_text(" "))
+            score = _candidate_link_score(candidate, anchor, company, title)
+            if score >= 0:
+                candidates.append((score, candidate))
 
-            if is_direct_ats(candidate):
-                return candidate
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        for _, candidate in candidates[:8]:
+            details = fetch_direct_job_details(candidate, title)
+            if not details:
+                continue
+            actual_title = details.get("title") or title
+            if title and actual_title and title_similarity(title, actual_title) < 0.48:
+                continue
+            return details
 
     except Exception:
         pass
+
+    return None
+
+
+def _bing_rss_links(query):
+    try:
+        r = SESSION.get(
+            "https://www.bing.com/search",
+            params={"q": query, "format": "rss"},
+            timeout=REQUEST_TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+        root = ET.fromstring(r.text)
+        out = []
+        for item in root.findall(".//item"):
+            link = clean(item.findtext("link") or "")
+            title = clean(item.findtext("title") or "")
+            if link:
+                out.append((link, title))
+        return out
+    except Exception:
+        return []
+
+
+def expanded_direct_search_resolve(company, title):
+    # Best-effort fallback for ATS families without a simple public board API
+    # (Workday, iCIMS, Oracle/Taleo, Eightfold) and branded company-careers pages.
+    query = f'"{company}" "{title}" jobs careers'
+    results = _bing_rss_links(query)
+    candidates = []
+    seen = set()
+
+    for link, result_title in results:
+        candidate = canonical_url(link)
+        if candidate in seen or not is_direct_ats(candidate):
+            continue
+        seen.add(candidate)
+        score = _candidate_link_score(candidate, result_title, company, title)
+        candidates.append((score, candidate))
+
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    for _, candidate in candidates[:10]:
+        details = fetch_direct_job_details(candidate, title)
+        if not details:
+            continue
+        actual_title = details.get("title") or title
+        if title_similarity(title, actual_title) < 0.52:
+            continue
+        return details
 
     return None
 
@@ -846,18 +1107,10 @@ def smartrecruiters_resolve(company, title):
     return None
 
 def resolve_direct_ats(company, title, provider_url):
-    direct = direct_from_provider_page(provider_url)
+    direct = direct_from_provider_page(provider_url, company, title)
 
     if direct:
-        return {
-            "url": direct,
-            "title": title,
-            "location": "",
-            "posted_date": None,
-            "description": "",
-            "source_type": source_type(direct),
-            "match_score": 1.0,
-        }
+        return direct
 
     for resolver in [
         ashby_resolve,
@@ -868,9 +1121,17 @@ def resolve_direct_ats(company, title, provider_url):
         result = resolver(company, title)
 
         if result:
+            # Enrich API-resolved postings with page metadata when possible.
+            enriched = fetch_direct_job_details(result.get("url") or "", result.get("title") or title)
+            if enriched:
+                for key in ("location", "posted_date", "description"):
+                    if enriched.get(key):
+                        result[key] = enriched[key]
+                result["url"] = enriched.get("url") or result["url"]
+                result["source_type"] = enriched.get("source_type") or result.get("source_type")
             return result
 
-    return None
+    return expanded_direct_search_resolve(company, title)
 
 def jobicy(cfg):
     seen = set()
