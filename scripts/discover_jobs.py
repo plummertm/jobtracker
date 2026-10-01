@@ -2420,6 +2420,90 @@ def purge_existing_active_ts():
         print(f"Purged {len(purge_ids)} existing active-TS discovery rows.")
 
 
+
+def purge_discovery_noise(min_match_score=80, max_age_days=30):
+    """Remove discovery rows that should no longer be surfaced.
+
+    - Rows below the minimum fit threshold are removed.
+    - Rows older than max_age_days are removed.
+    - Rows explicitly soft-deleted by the user are preserved as tombstones so
+      the same source_key cannot be rediscovered on the next sync.
+    """
+    r = SESSION.get(
+        f"{SUPABASE_URL}/rest/v1/discovered_jobs",
+        headers=supabase_headers(),
+        params={
+            "select": "id,posted_date,first_seen_at,match_score,decision,pass_reason",
+            "user_id": f"eq.{USER_ID}",
+            "limit": "10000",
+        },
+        timeout=30,
+    )
+    r.raise_for_status()
+
+    purge_ids = []
+    low_match = 0
+    stale = 0
+
+    for row in r.json() or []:
+        job_id = row.get("id")
+        if not job_id:
+            continue
+
+        # Keep user-deleted rows as hidden tombstones so their source_key remains
+        # in Supabase and the posting does not come back on the next harvest.
+        if (
+            str(row.get("decision") or "").lower() == "passed"
+            and str(row.get("pass_reason") or "") == "Deleted by user"
+        ):
+            continue
+
+        score = row.get("match_score")
+        try:
+            score_num = float(score) if score is not None else None
+        except (TypeError, ValueError):
+            score_num = None
+
+        should_purge = False
+        if score_num is not None and score_num < float(min_match_score):
+            should_purge = True
+            low_match += 1
+
+        if is_too_old(row.get("posted_date"), int(max_age_days)):
+            if not should_purge:
+                stale += 1
+            should_purge = True
+
+        if should_purge:
+            purge_ids.append(job_id)
+
+    for job_id in purge_ids:
+        dr = SESSION.delete(
+            f"{SUPABASE_URL}/rest/v1/discovered_jobs",
+            headers=supabase_headers(),
+            params={
+                "id": f"eq.{job_id}",
+                "user_id": f"eq.{USER_ID}",
+            },
+            timeout=30,
+        )
+        if dr.status_code >= 300:
+            raise RuntimeError(
+                f"Supabase discovery cleanup failed {dr.status_code}: {dr.text}"
+            )
+
+    if purge_ids:
+        print(
+            f"Discovery cleanup removed {len(purge_ids)} rows "
+            f"({low_match} below {min_match_score}% match; {stale} stale > {max_age_days} days)."
+        )
+    else:
+        print(
+            f"Discovery cleanup: nothing to remove "
+            f"(minimum match {min_match_score}%, max age {max_age_days} days)."
+        )
+
+
 def insert_rows(rows):
     if not rows:
         return
@@ -2454,6 +2538,10 @@ def main():
             30,
         )
     )
+    min_match_score = int(cfg.get("min_match_score", 80))
+
+    # Keep Discovery intentionally selective on every sync.
+    purge_discovery_noise(min_match_score, max_age_days)
 
     purge_existing_active_ts()
     backfill_existing_matches()
@@ -2682,6 +2770,18 @@ def main():
             resolved_description,
             resolved_location,
         )
+
+        if match_score < min_match_score:
+            print(
+                "EXCLUDED LOW MATCH:",
+                company,
+                "|",
+                resolved_title,
+                "|",
+                f"{match_score}% < {min_match_score}%",
+            )
+            continue
+
         salary_min = ats.get("salary_min")
         salary_max = ats.get("salary_max")
         if salary_min is None or salary_max is None:
