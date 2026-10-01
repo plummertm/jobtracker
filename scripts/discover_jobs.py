@@ -1463,6 +1463,19 @@ def update_existing_match(key, match_score, match_summary, last_seen_at, salary_
         "Content-Type": "application/json",
         "Prefer": "return=minimal",
     }
+
+    # Never erase an already-known salary just because one resolver did not
+    # return compensation on a later run.
+    payload = {
+        "match_score": match_score,
+        "match_summary": match_summary,
+        "last_seen_at": last_seen_at,
+    }
+    if salary_min is not None:
+        payload["salary_min"] = salary_min
+    if salary_max is not None:
+        payload["salary_max"] = salary_max
+
     r = SESSION.patch(
         f"{SUPABASE_URL}/rest/v1/discovered_jobs",
         headers=headers,
@@ -1470,13 +1483,7 @@ def update_existing_match(key, match_score, match_summary, last_seen_at, salary_
             "user_id": f"eq.{USER_ID}",
             "source_key": f"eq.{key}",
         },
-        data=json.dumps({
-            "match_score": match_score,
-            "match_summary": match_summary,
-            "salary_min": salary_min,
-            "salary_max": salary_max,
-            "last_seen_at": last_seen_at,
-        }),
+        data=json.dumps(payload),
         timeout=30,
     )
     if r.status_code >= 300:
@@ -1488,7 +1495,7 @@ def backfill_existing_matches():
         f"{SUPABASE_URL}/rest/v1/discovered_jobs",
         headers=supabase_headers(),
         params={
-            "select": "id,role,description,location,match_score,match_summary,salary_min,salary_max",
+            "select": "id,company,role,job_url,description,location,match_score,match_summary,salary_min,salary_max",
             "user_id": f"eq.{USER_ID}",
             "limit": "10000",
         },
@@ -1497,40 +1504,68 @@ def backfill_existing_matches():
     r.raise_for_status()
 
     updated = 0
+    comp_updated = 0
+
     for row in r.json():
         job_id = row.get("id")
         if not job_id:
             continue
+
+        stored_description = row.get("description") or ""
+        description = stored_description
+
+        # Existing rows were often created before compensation extraction existed.
+        # Re-fetch the direct posting when compensation is missing so we are not
+        # limited to an older/truncated description already stored in Supabase.
+        needs_salary_refresh = row.get("salary_min") is None or row.get("salary_max") is None
+        refreshed = None
+        if needs_salary_refresh and row.get("job_url"):
+            refreshed = fetch_direct_job_details(
+                row.get("job_url") or "",
+                row.get("role") or "",
+            )
+            fresh_description = (refreshed or {}).get("description") or ""
+            if len(fresh_description) > len(description):
+                description = fresh_description
+
         score, summary = calculate_match(
             row.get("role") or "",
-            row.get("description") or "",
+            description,
             row.get("location") or "",
         )
 
-        if not row.get("description"):
+        if not description:
             summary = (
                 summary
                 + " Fit is provisional because the stored posting does not yet contain full JD text."
             )
 
-        salary_min, salary_max = extract_base_compensation(row.get("description") or "")
+        salary_min, salary_max = extract_base_compensation(description)
+
         payload = {
             "match_score": score,
             "match_summary": summary,
             "last_seen_at": datetime.now(timezone.utc).isoformat(),
         }
+
+        # Preserve richer JD text obtained from the direct posting so later match
+        # and compensation backfills do not have to start from a truncated copy.
+        if description and description != stored_description:
+            payload["description"] = description
+
         if salary_min is not None:
             payload["salary_min"] = salary_min
         if salary_max is not None:
             payload["salary_max"] = salary_max
 
-        # Avoid unnecessary writes when neither match nor compensation needs changing.
         needs_match = row.get("match_score") is None or not row.get("match_summary")
+        needs_description = bool(description and description != stored_description)
         needs_comp = (
             salary_min is not None and salary_max is not None and
             (row.get("salary_min") != salary_min or row.get("salary_max") != salary_max)
         )
-        if not needs_match and not needs_comp:
+
+        if not needs_match and not needs_description and not needs_comp:
             continue
 
         pr = SESSION.patch(
@@ -1549,12 +1584,25 @@ def backfill_existing_matches():
         )
         if pr.status_code >= 300:
             raise RuntimeError(
-                f"Supabase match backfill failed {pr.status_code}: {pr.text}"
+                f"Supabase match/compensation backfill failed {pr.status_code}: {pr.text}"
             )
+
         updated += 1
+        if needs_comp:
+            comp_updated += 1
+            print(
+                "BACKFILLED COMP:",
+                row.get("company") or "",
+                "|",
+                row.get("role") or "",
+                "|",
+                f"${salary_min:,} - ${salary_max:,}",
+            )
 
     if updated:
-        print(f"Backfilled match insight for {updated} existing discovery rows.")
+        print(f"Backfilled match/description data for {updated} existing discovery rows.")
+    if comp_updated:
+        print(f"Backfilled compensation for {comp_updated} existing discovery rows.")
 
 
 def purge_existing_active_ts():
