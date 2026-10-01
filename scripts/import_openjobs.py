@@ -50,6 +50,7 @@ def parse_rows(path):
 def main():
     cfg = dj.load_config()
     max_age_days = int(cfg.get("max_post_age_days", 30))
+    min_match_score = int(cfg.get("min_match_score", 80))
 
     if len(sys.argv) > 1:
         csv_path = sys.argv[1]
@@ -63,6 +64,7 @@ def main():
     # Keep existing rows healthy before adding fresh jobs.
     dj.purge_existing_active_ts()
     dj.backfill_existing_matches()
+    dj.purge_discovery_noise(min_match_score, max_age_days)
 
     known = dj.existing_keys()
     rows_to_insert = []
@@ -73,6 +75,7 @@ def main():
     location_rejected = 0
     stale = 0
     active_ts = 0
+    low_match = 0
     duplicates = 0
     detail_fetch_failed = 0
     accepted = 0
@@ -151,6 +154,10 @@ def main():
             description,
             resolved_location,
         )
+        if match_score < min_match_score:
+            low_match += 1
+            continue
+
         if not description:
             match_summary += " Fit is provisional because the ATS export did not expose full JD text."
 
@@ -209,6 +216,7 @@ def main():
     print("Location-rejected:", location_rejected)
     print("Stale postings skipped:", stale)
     print("Active-TS postings excluded:", active_ts)
+    print(f"Below {min_match_score}% match excluded:", low_match)
     print("Detail fetch unavailable (fallback used):", detail_fetch_failed)
     print("Already known / refreshed:", duplicates)
     print("NEW jobs inserted:", len(rows_to_insert))
