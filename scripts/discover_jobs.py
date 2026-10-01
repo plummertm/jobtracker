@@ -785,7 +785,106 @@ def _schema_location(jobposting):
     return "; ".join(dict.fromkeys(out))
 
 
-def fetch_direct_job_details(url, fallback_title=""):
+
+def greenhouse_job_details(company, title, url):
+    """Fetch a full Greenhouse posting, including branded ?gh_jid= URLs."""
+    try:
+        parsed = urllib.parse.urlparse(url or "")
+        qs = urllib.parse.parse_qs(parsed.query)
+
+        board = ""
+        job_id = ""
+
+        m = re.search(
+            r"(?:job-boards\.greenhouse\.io|boards\.greenhouse\.io)/([^/?#]+)/jobs/(\d+)",
+            url or "",
+            re.I,
+        )
+        if m:
+            board = m.group(1)
+            job_id = m.group(2)
+
+        if not job_id:
+            vals = qs.get("gh_jid") or qs.get("gh_jid[]") or []
+            if vals:
+                job_id = str(vals[0]).strip()
+
+        if not job_id:
+            return None
+
+        boards = []
+        if board:
+            boards.append(board)
+        boards.extend(company_slug_variants(company))
+
+        seen = set()
+        for candidate_board in boards:
+            candidate_board = str(candidate_board or "").strip()
+            key = candidate_board.lower()
+            if not candidate_board or key in seen:
+                continue
+            seen.add(key)
+
+            api_url = (
+                "https://boards-api.greenhouse.io/v1/boards/"
+                + urllib.parse.quote(candidate_board, safe="")
+                + "/jobs/"
+                + urllib.parse.quote(job_id, safe="")
+            )
+
+            r = SESSION.get(
+                api_url,
+                params={"content": "true"},
+                timeout=REQUEST_TIMEOUT,
+            )
+            if r.status_code != 200:
+                continue
+
+            job = r.json() or {}
+            job_title = clean(job.get("title") or title or "")
+            if title and job_title and title_similarity(title, job_title) < 0.55:
+                continue
+
+            content = clean(
+                BeautifulSoup(
+                    job.get("content") or "",
+                    "html.parser",
+                ).get_text(" ")
+            )
+
+            location = ""
+            loc = job.get("location") or {}
+            if isinstance(loc, dict):
+                location = clean(loc.get("name") or "")
+            elif loc:
+                location = clean(loc)
+
+            direct_url = canonical_url(
+                job.get("absolute_url")
+                or f"https://job-boards.greenhouse.io/{candidate_board}/jobs/{job_id}"
+            )
+
+            return {
+                "url": direct_url,
+                "title": job_title or title,
+                "location": location,
+                "posted_date": iso_date(job.get("updated_at")),
+                "description": content,
+                "source_type": "greenhouse",
+                "match_score": 1.0,
+            }
+
+    except Exception:
+        return None
+
+    return None
+
+
+def fetch_direct_job_details(url, fallback_title="", company=""):
+    gh = greenhouse_job_details(company, fallback_title, url)
+    if gh and gh.get("description"):
+        return gh
+
     try:
         r = SESSION.get(url, timeout=REQUEST_TIMEOUT, allow_redirects=True)
         if r.status_code >= 400:
@@ -888,7 +987,7 @@ def direct_from_provider_page(url, company="", title=""):
             final = canonical_url(rr.url)
             if not is_direct_ats(final):
                 return None
-            return fetch_direct_job_details(final, title) or {
+            return fetch_direct_job_details(final, title, company) or {
                 "url": final,
                 "title": title,
                 "location": "",
@@ -906,7 +1005,7 @@ def direct_from_provider_page(url, company="", title=""):
 
         final_url = canonical_url(r.url)
         if is_direct_ats(final_url):
-            return fetch_direct_job_details(final_url, title) or {
+            return fetch_direct_job_details(final_url, title, company) or {
                 "url": final_url,
                 "title": title,
                 "location": "",
@@ -1315,7 +1414,7 @@ def resolve_direct_ats(company, title, provider_url):
 
         if result:
             # Enrich API-resolved postings with page metadata when possible.
-            enriched = fetch_direct_job_details(result.get("url") or "", result.get("title") or title)
+            enriched = fetch_direct_job_details(result.get("url") or "", result.get("title") or title, company)
             if enriched:
                 for key in ("location", "posted_date", "description"):
                     if enriched.get(key):
@@ -1523,6 +1622,7 @@ def backfill_existing_matches():
             refreshed = fetch_direct_job_details(
                 row.get("job_url") or "",
                 row.get("role") or "",
+                row.get("company") or "",
             )
             fresh_description = (refreshed or {}).get("description") or ""
             if len(fresh_description) > len(description):
