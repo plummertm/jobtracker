@@ -1606,6 +1606,92 @@ def remoteok():
     except Exception as e:
         print("RemoteOK error:", e)
 
+
+
+def arbeitnow():
+    """Public job-board feed used only for candidate discovery.
+
+    Final insertion still requires resolution to a direct employer/ATS job URL.
+    """
+    for page in range(1, 4):
+        try:
+            r = SESSION.get(
+                "https://www.arbeitnow.com/api/job-board-api",
+                params={"page": page},
+                timeout=25,
+            )
+            r.raise_for_status()
+            payload = r.json() or {}
+            jobs = payload.get("data") or []
+            if not jobs:
+                break
+
+            for job in jobs:
+                created = job.get("created_at")
+                posted_date = None
+                if isinstance(created, (int, float)):
+                    try:
+                        posted_date = datetime.fromtimestamp(
+                            float(created), timezone.utc
+                        ).date().isoformat()
+                    except (ValueError, OSError, OverflowError):
+                        posted_date = None
+                else:
+                    posted_date = iso_date(created)
+
+                yield {
+                    "company": clean(job.get("company_name") or ""),
+                    "title": clean(job.get("title") or ""),
+                    "url": job.get("url") or "",
+                    "location": clean(job.get("location") or ("Remote" if job.get("remote") else "")),
+                    "posted_date": posted_date,
+                    "description": clean(
+                        BeautifulSoup(job.get("description") or "", "html.parser").get_text(" ")
+                    ),
+                }
+        except Exception as e:
+            print("Arbeitnow error:", e)
+            break
+
+
+def themuse():
+    """The Muse public feed, used only to discover candidate postings."""
+    for page in range(1, 5):
+        try:
+            r = SESSION.get(
+                "https://www.themuse.com/api/public/jobs",
+                params={"page": page},
+                timeout=25,
+            )
+            r.raise_for_status()
+            payload = r.json() or {}
+            jobs = payload.get("results") or []
+            if not jobs:
+                break
+
+            for job in jobs:
+                company = job.get("company") or {}
+                locations = job.get("locations") or []
+                location_text = "; ".join(
+                    clean(item.get("name") or "")
+                    for item in locations
+                    if isinstance(item, dict) and clean(item.get("name") or "")
+                )
+                refs = job.get("refs") or {}
+                yield {
+                    "company": clean(company.get("name") if isinstance(company, dict) else company),
+                    "title": clean(job.get("name") or ""),
+                    "url": refs.get("landing_page") or job.get("url") or "",
+                    "location": location_text,
+                    "posted_date": iso_date(job.get("publication_date")),
+                    "description": clean(
+                        BeautifulSoup(job.get("contents") or "", "html.parser").get_text(" ")
+                    ),
+                }
+        except Exception as e:
+            print("TheMuse error:", e)
+            break
+
 def supabase_headers():
     return {
         "apikey": SUPABASE_KEY,
@@ -1632,6 +1718,279 @@ def existing_keys():
         for row in r.json()
         if row.get("source_key")
     }
+
+
+
+def existing_discovery_sources():
+    """Return prior discovery rows so successful ATS boards become self-learning sources."""
+    r = SESSION.get(
+        f"{SUPABASE_URL}/rest/v1/discovered_jobs",
+        headers=supabase_headers(),
+        params={
+            "select": "company,job_url,source_type",
+            "user_id": f"eq.{USER_ID}",
+            "limit": "10000",
+        },
+        timeout=30,
+    )
+    r.raise_for_status()
+    return r.json() or []
+
+
+def _learned_board_targets(rows):
+    targets = {
+        "greenhouse": set(),
+        "lever": set(),
+        "ashby": set(),
+        "smartrecruiters": set(),
+    }
+    company_hints = set()
+
+    for row in rows:
+        company = clean(row.get("company") or "")
+        url = row.get("job_url") or ""
+        if company:
+            company_hints.add(company)
+        if not url:
+            continue
+
+        parsed = urllib.parse.urlsplit(url)
+        host = parsed.netloc.lower().split(":")[0]
+        parts = [urllib.parse.unquote(x) for x in parsed.path.split("/") if x]
+
+        if host in {"job-boards.greenhouse.io", "boards.greenhouse.io"} and parts:
+            targets["greenhouse"].add((parts[0], company))
+        elif host in {"jobs.lever.co", "jobs.eu.lever.co"} and parts:
+            targets["lever"].add((parts[0], company))
+        elif host == "jobs.ashbyhq.com" and parts:
+            targets["ashby"].add((parts[0], company))
+        elif host == "jobs.smartrecruiters.com" and parts:
+            targets["smartrecruiters"].add((parts[0], company))
+
+    return targets, company_hints
+
+
+def _direct_candidate(company, title, url, location, posted_date, description, source_name):
+    return {
+        "company": clean(company),
+        "title": clean(title),
+        "url": canonical_url(url),
+        "location": clean(location),
+        "posted_date": iso_date(posted_date),
+        "description": clean(description),
+        "candidate_source": source_name,
+    }
+
+
+def scan_greenhouse_board(board, company, cfg):
+    out = []
+    try:
+        url = "https://boards-api.greenhouse.io/v1/boards/" + urllib.parse.quote(board, safe="") + "/jobs"
+        r = SESSION.get(
+            url,
+            params={"content": "true", "pay_transparency": "true"},
+            timeout=REQUEST_TIMEOUT,
+        )
+        if r.status_code != 200:
+            return out
+        for job in (r.json() or {}).get("jobs", []):
+            title = clean(job.get("title") or "")
+            if not title_matches_config(title, cfg):
+                continue
+            loc = job.get("location") or {}
+            location = clean(loc.get("name") if isinstance(loc, dict) else loc)
+            direct_url = job.get("absolute_url") or ""
+            if not direct_url:
+                continue
+            description = clean(BeautifulSoup(job.get("content") or "", "html.parser").get_text(" "))
+            out.append(_direct_candidate(
+                company or board, title, direct_url, location,
+                job.get("updated_at"), description, "direct-greenhouse-scan"
+            ))
+    except Exception as e:
+        print("Greenhouse direct-scan error:", board, e)
+    return out
+
+
+def scan_lever_site(site, company, cfg):
+    out = []
+    try:
+        r = SESSION.get(
+            "https://api.lever.co/v0/postings/" + urllib.parse.quote(site, safe=""),
+            params={"mode": "json"},
+            timeout=REQUEST_TIMEOUT,
+        )
+        if r.status_code != 200:
+            return out
+        postings = r.json()
+        if not isinstance(postings, list):
+            return out
+        for job in postings:
+            title = clean(job.get("text") or "")
+            if not title_matches_config(title, cfg):
+                continue
+            posting_id = str(job.get("id") or "").strip()
+            if not posting_id:
+                continue
+            location = clean(((job.get("categories") or {}).get("location") or ""))
+            description = clean(job.get("descriptionPlain") or job.get("description") or "")
+            direct_url = f"https://jobs.lever.co/{site}/{posting_id}"
+            created = job.get("createdAt")
+            posted = None
+            if isinstance(created, (int, float)):
+                try:
+                    posted = datetime.fromtimestamp(float(created) / 1000.0, timezone.utc).date().isoformat()
+                except (ValueError, OSError, OverflowError):
+                    posted = None
+            else:
+                posted = iso_date(created)
+            out.append(_direct_candidate(
+                company or site, title, direct_url, location,
+                posted, description, "direct-lever-scan"
+            ))
+    except Exception as e:
+        print("Lever direct-scan error:", site, e)
+    return out
+
+
+def scan_ashby_board(board, company, cfg):
+    out = []
+    try:
+        r = SESSION.get(
+            "https://api.ashbyhq.com/posting-api/job-board/" + urllib.parse.quote(board, safe=""),
+            timeout=REQUEST_TIMEOUT,
+        )
+        if r.status_code != 200:
+            return out
+        for job in (r.json() or {}).get("jobs", []):
+            title = clean(job.get("title") or "")
+            if not title_matches_config(title, cfg):
+                continue
+            direct_url = job.get("jobUrl") or job.get("applyUrl") or ""
+            if not direct_url:
+                continue
+            description = clean(
+                BeautifulSoup(job.get("descriptionHtml") or "", "html.parser").get_text(" ")
+            )
+            out.append(_direct_candidate(
+                company or board, title, direct_url,
+                job.get("location") or "", job.get("publishedAt"),
+                description, "direct-ashby-scan"
+            ))
+    except Exception as e:
+        print("Ashby direct-scan error:", board, e)
+    return out
+
+
+def scan_smartrecruiters_company(company_id, company, cfg):
+    out = []
+    try:
+        r = SESSION.get(
+            f"https://api.smartrecruiters.com/v1/companies/{urllib.parse.quote(company_id, safe='')}/postings",
+            params={"limit": 100},
+            timeout=REQUEST_TIMEOUT,
+        )
+        if r.status_code != 200:
+            return out
+        for posting in (r.json() or {}).get("content", []):
+            title = clean(posting.get("name") or "")
+            if not title_matches_config(title, cfg):
+                continue
+            pid = str(posting.get("id") or "").strip()
+            if not pid:
+                continue
+            detail_url = f"https://api.smartrecruiters.com/v1/companies/{urllib.parse.quote(company_id, safe='')}/postings/{urllib.parse.quote(pid, safe='')}"
+            detail = posting
+            try:
+                dr = SESSION.get(detail_url, timeout=REQUEST_TIMEOUT)
+                if dr.status_code == 200:
+                    detail = dr.json() or posting
+            except Exception:
+                pass
+            loc = detail.get("location") or posting.get("location") or {}
+            if isinstance(loc, dict):
+                location = clean(", ".join(str(loc.get(k) or "") for k in ("city", "region", "country") if loc.get(k)))
+            else:
+                location = clean(loc)
+            sections = detail.get("jobAd") or {}
+            description_parts = []
+            if isinstance(sections, dict):
+                for value in sections.values():
+                    if isinstance(value, dict):
+                        value = value.get("text") or value.get("title") or ""
+                    if value:
+                        description_parts.append(str(value))
+            description = clean(BeautifulSoup(" ".join(description_parts), "html.parser").get_text(" "))
+            direct_url = f"https://jobs.smartrecruiters.com/{company_id}/{pid}"
+            out.append(_direct_candidate(
+                company or company_id, title, direct_url, location,
+                detail.get("releasedDate") or posting.get("releasedDate"),
+                description, "direct-smartrecruiters-scan"
+            ))
+    except Exception as e:
+        print("SmartRecruiters direct-scan error:", company_id, e)
+    return out
+
+
+def direct_ats_harvest(cfg, candidate_companies=None):
+    """Harvest new roles directly from ATS boards learned from prior successes.
+
+    This is deliberately self-learning rather than a manually maintained company watchlist.
+    It also probes a small number of likely board slugs for companies already seen in the
+    current public feeds, which lets a single feed hit unlock other fresh jobs at that employer.
+    """
+    rows = existing_discovery_sources()
+    targets, known_companies = _learned_board_targets(rows)
+
+    for company in candidate_companies or []:
+        if company:
+            known_companies.add(clean(company))
+
+    harvested = []
+    seen_targets = set()
+
+    for source_name, items in targets.items():
+        for board_id, company in sorted(items):
+            key = (source_name, board_id.lower())
+            if key in seen_targets:
+                continue
+            seen_targets.add(key)
+            if source_name == "greenhouse":
+                harvested.extend(scan_greenhouse_board(board_id, company, cfg))
+            elif source_name == "lever":
+                harvested.extend(scan_lever_site(board_id, company, cfg))
+            elif source_name == "ashby":
+                harvested.extend(scan_ashby_board(board_id, company, cfg))
+            elif source_name == "smartrecruiters":
+                harvested.extend(scan_smartrecruiters_company(board_id, company, cfg))
+
+    # Probe likely board slugs for only a capped set of known/current companies.
+    # Successful probes add full matching job inventories from that board.
+    for company in sorted(known_companies)[:60]:
+        if company_is_excluded(company, cfg):
+            continue
+        variants = company_slug_variants(company)[:4]
+        found_for_company = False
+        for board in variants:
+            for source_name, scanner in (
+                ("greenhouse", scan_greenhouse_board),
+                ("lever", scan_lever_site),
+                ("ashby", scan_ashby_board),
+                ("smartrecruiters", scan_smartrecruiters_company),
+            ):
+                key = (source_name, board.lower())
+                if key in seen_targets:
+                    continue
+                seen_targets.add(key)
+                batch = scanner(board, company, cfg)
+                if batch:
+                    harvested.extend(batch)
+                    found_for_company = True
+            if found_for_company:
+                break
+
+    print("Direct ATS harvest candidates:", len(harvested))
+    return harvested
 
 def update_existing_match(key, match_score, match_summary, last_seen_at, salary_min=None, salary_max=None):
     headers = {
@@ -1964,23 +2323,30 @@ def main():
 
     raw = []
 
-    raw.extend(
-        list(
-            jobicy(cfg)
-        )
-    )
+    source_batches = [
+        ("Jobicy", list(jobicy(cfg))),
+        ("Remotive", list(remotive())),
+        ("RemoteOK", list(remoteok())),
+        ("Arbeitnow", list(arbeitnow())),
+        ("TheMuse", list(themuse())),
+    ]
 
-    raw.extend(
-        list(
-            remotive()
-        )
-    )
+    for source_name, batch in source_batches:
+        print(f"{source_name} candidates fetched: {len(batch)}")
+        for job in batch:
+            job.setdefault("candidate_source", source_name.lower())
+        raw.extend(batch)
 
-    raw.extend(
-        list(
-            remoteok()
-        )
-    )
+    # The old collector waited for an aggregator to surface every posting first.
+    # Harvest ATS boards learned from previous successful resolutions and companies
+    # appearing in the current feeds so each scheduled run can catch newly posted
+    # jobs directly from Greenhouse/Lever/Ashby/SmartRecruiters.
+    current_companies = {
+        clean(job.get("company") or "")
+        for job in raw
+        if clean(job.get("company") or "")
+    }
+    raw.extend(direct_ats_harvest(cfg, current_companies))
 
     candidates = {}
 
