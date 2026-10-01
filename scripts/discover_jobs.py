@@ -966,6 +966,7 @@ def fetch_direct_job_details(url, fallback_title="", company=""):
         description = ""
         posted_date = None
         location = ""
+        company_name = clean(company or "")
 
         if jp:
             title = clean(jp.get("title") or fallback_title)
@@ -974,6 +975,9 @@ def fetch_direct_job_details(url, fallback_title="", company=""):
             )
             posted_date = iso_date(jp.get("datePosted"))
             location = _schema_location(jp)
+            hiring_org = jp.get("hiringOrganization") or {}
+            if isinstance(hiring_org, dict):
+                company_name = clean(hiring_org.get("name") or company_name)
 
         if not title:
             meta = soup.find("meta", attrs={"property": "og:title"})
@@ -995,6 +999,7 @@ def fetch_direct_job_details(url, fallback_title="", company=""):
         return {
             "url": final_url,
             "title": title or fallback_title,
+            "company": company_name,
             "location": location,
             "posted_date": posted_date,
             "description": description,
@@ -1137,7 +1142,7 @@ def _bing_rss_links(query):
     try:
         r = SESSION.get(
             "https://www.bing.com/search",
-            params={"q": query, "format": "rss"},
+            params={"q": query, "format": "rss", "count": 50},
             timeout=REQUEST_TIMEOUT,
         )
         if r.status_code != 200:
@@ -1200,6 +1205,103 @@ def expanded_direct_search_resolve(company, title):
         return details
 
     return None
+
+def _company_hint_from_search(result_title, role_title, url):
+    """Best-effort company name from search title or ATS board slug."""
+    rt = clean(result_title or "")
+    role_n = norm(role_title or "")
+
+    # Common Bing titles look like "Company - Solutions Engineer".
+    for sep in (" - ", " | ", " – ", " — "):
+        if sep in rt:
+            parts = [clean(x) for x in rt.split(sep) if clean(x)]
+            for part in parts:
+                if role_n and title_similarity(role_title, part) >= 0.72:
+                    continue
+                if any(k in norm(part) for k in ("jobs", "careers", "apply")) and len(parts) > 1:
+                    continue
+                if 1 <= len(part.split()) <= 8:
+                    return part
+
+    parsed = urllib.parse.urlsplit(url or "")
+    host = parsed.netloc.lower().split(":")[0]
+    parts = [urllib.parse.unquote(x) for x in parsed.path.split("/") if x]
+    slug = ""
+    if host in {"jobs.lever.co", "jobs.eu.lever.co", "jobs.ashbyhq.com", "job-boards.greenhouse.io", "boards.greenhouse.io", "jobs.smartrecruiters.com"} and parts:
+        slug = parts[0]
+    if slug:
+        words = re.sub(r"[_-]+", " ", slug).strip().split()
+        return " ".join(w.capitalize() for w in words)
+    return ""
+
+
+def title_first_ats_search(cfg):
+    """Discover direct ATS postings without needing a company/feed seed first.
+
+    This is the missing coverage layer: query the web index for target titles on
+    direct ATS domains, then validate the live posting itself before insertion.
+    """
+    title_groups = [
+        '("Solutions Engineer" OR "Sales Engineer" OR "Pre-Sales Engineer" OR "Presales Engineer")',
+        '("Solutions Architect" OR "Customer Engineer" OR "Customer Solutions Engineer")',
+        '("Forward Deployed Engineer" OR "Technical Solutions Engineer")',
+        '("AI Solutions Engineer" OR "AI Solutions Architect" OR "Security Solutions Engineer")',
+    ]
+    domains = [
+        "jobs.lever.co",
+        "jobs.ashbyhq.com",
+        "job-boards.greenhouse.io",
+        "jobs.smartrecruiters.com",
+        "myworkdayjobs.com",
+    ]
+
+    out = []
+    seen_urls = set()
+    for domain in domains:
+        for titles in title_groups:
+            query = f'site:{domain} {titles} ("United States" OR USA OR Remote OR "Washington D.C." OR "Washington, DC")'
+            links = _bing_rss_links(query)
+            for link, result_title in links:
+                candidate_url = canonical_url(link)
+                if not candidate_url or candidate_url in seen_urls or not is_direct_ats(candidate_url):
+                    continue
+                seen_urls.add(candidate_url)
+
+                details = fetch_direct_job_details(candidate_url, "")
+                if not details:
+                    continue
+                role = clean(details.get("title") or "")
+                if not role or not title_matches_config(role, cfg):
+                    continue
+
+                company = clean(details.get("company") or "")
+                if not company:
+                    company = _company_hint_from_search(result_title, role, candidate_url)
+                if not company:
+                    continue
+
+                description = clean(details.get("description") or "")
+                location = clean(details.get("location") or "")
+                if company_is_excluded(company, cfg):
+                    continue
+                if requires_active_ts(role, description):
+                    continue
+                if not location_matches(location, cfg):
+                    continue
+
+                out.append(_direct_candidate(
+                    company,
+                    role,
+                    details.get("url") or candidate_url,
+                    location,
+                    details.get("posted_date"),
+                    description,
+                    "title-first-ats-search",
+                ))
+
+    print("Title-first ATS search candidates:", len(out))
+    return out
+
 
 def ashby_resolve(company, title):
     for board in company_slug_variants(company):
@@ -2336,6 +2438,10 @@ def main():
         for job in batch:
             job.setdefault("candidate_source", source_name.lower())
         raw.extend(batch)
+
+    # Search direct ATS domains by title, independent of the aggregator/company seed.
+    # This catches newly posted roles at companies we have never seen before.
+    raw.extend(title_first_ats_search(cfg))
 
     # The old collector waited for an aggregator to surface every posting first.
     # Harvest ATS boards learned from previous successful resolutions and companies
