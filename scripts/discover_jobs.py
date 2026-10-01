@@ -547,6 +547,22 @@ def _money_to_number(raw):
     return int(round(value))
 
 
+def salary_missing_or_invalid(value):
+    """Treat null/blank and obviously malformed annual salary values as unusable.
+
+    Older discovery rows briefly stored values like 208 / 261 for $208k / $261k.
+    Annual base salary values below $20k are therefore considered invalid and
+    should be refreshed from the live posting rather than preserved.
+    """
+    if value is None or value == "":
+        return True
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return True
+    return amount <= 0 or amount < 20000
+
+
 def extract_base_compensation(description):
     """Return (salary_min, salary_max) for a clearly annual/base salary range.
 
@@ -1650,12 +1666,70 @@ def update_existing_match(key, match_score, match_summary, last_seen_at, salary_
         raise RuntimeError(f"Supabase match update failed {r.status_code}: {r.text}")
 
 
+def sync_linked_tracker_compensation(tracker_job_id, salary_min, salary_max):
+    """Repair a linked Application Tracker row when its saved salary is blank/invalid.
+
+    Discovery rows that were marked applied before compensation extraction existed may
+    already have copied malformed values (for example 208 instead of 208000) into the
+    jobs table. Only blank/invalid tracker values are replaced so valid manual edits are
+    left alone.
+    """
+    if not tracker_job_id or salary_min is None or salary_max is None:
+        return False
+
+    r = SESSION.get(
+        f"{SUPABASE_URL}/rest/v1/jobs",
+        headers=supabase_headers(),
+        params={
+            "select": "id,salary_min,salary_max",
+            "id": f"eq.{tracker_job_id}",
+            "user_id": f"eq.{USER_ID}",
+            "limit": "1",
+        },
+        timeout=30,
+    )
+    r.raise_for_status()
+    rows = r.json() or []
+    if not rows:
+        return False
+
+    current = rows[0]
+    if not (
+        salary_missing_or_invalid(current.get("salary_min"))
+        or salary_missing_or_invalid(current.get("salary_max"))
+    ):
+        return False
+
+    pr = SESSION.patch(
+        f"{SUPABASE_URL}/rest/v1/jobs",
+        headers={
+            **supabase_headers(),
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+        },
+        params={
+            "id": f"eq.{tracker_job_id}",
+            "user_id": f"eq.{USER_ID}",
+        },
+        data=json.dumps({
+            "salary_min": salary_min,
+            "salary_max": salary_max,
+        }),
+        timeout=30,
+    )
+    if pr.status_code >= 300:
+        raise RuntimeError(
+            f"Supabase linked tracker compensation sync failed {pr.status_code}: {pr.text}"
+        )
+    return True
+
+
 def backfill_existing_matches():
     r = SESSION.get(
         f"{SUPABASE_URL}/rest/v1/discovered_jobs",
         headers=supabase_headers(),
         params={
-            "select": "id,company,role,job_url,description,location,match_score,match_summary,salary_min,salary_max",
+            "select": "id,company,role,job_url,description,location,match_score,match_summary,salary_min,salary_max,tracker_job_id",
             "user_id": f"eq.{USER_ID}",
             "limit": "10000",
         },
@@ -1677,7 +1751,10 @@ def backfill_existing_matches():
         # Existing rows were often created before compensation extraction existed.
         # Re-fetch the direct posting when compensation is missing so we are not
         # limited to an older/truncated description already stored in Supabase.
-        needs_salary_refresh = row.get("salary_min") is None or row.get("salary_max") is None
+        needs_salary_refresh = (
+            salary_missing_or_invalid(row.get("salary_min"))
+            or salary_missing_or_invalid(row.get("salary_max"))
+        )
         refreshed = None
         if needs_salary_refresh and row.get("job_url"):
             refreshed = fetch_direct_job_details(
@@ -1709,6 +1786,29 @@ def backfill_existing_matches():
                 salary_min = parsed_min
             if salary_max is None:
                 salary_max = parsed_max
+
+        # Repair the legacy bad unit that briefly stored $208k-$261k as 208-261.
+        # This is only used when live/parsed compensation did not provide a valid
+        # annual range, and only for a plausible shorthand pair.
+        if salary_min is None or salary_max is None:
+            try:
+                old_min = float(row.get("salary_min"))
+                old_max = float(row.get("salary_max"))
+            except (TypeError, ValueError):
+                old_min = old_max = 0
+            if 20 <= old_min < 1000 and 20 <= old_max < 1000:
+                salary_min = int(round(old_min * 1000))
+                salary_max = int(round(old_max * 1000))
+                if salary_min > salary_max:
+                    salary_min, salary_max = salary_max, salary_min
+                print(
+                    "REPAIRED LEGACY COMP UNITS:",
+                    row.get("company") or "",
+                    "|",
+                    row.get("role") or "",
+                    "|",
+                    f"${salary_min:,} - ${salary_max:,}",
+                )
 
         payload = {
             "match_score": score,
@@ -1766,6 +1866,20 @@ def backfill_existing_matches():
                 "|",
                 f"${salary_min:,} - ${salary_max:,}",
             )
+
+            if sync_linked_tracker_compensation(
+                row.get("tracker_job_id"),
+                salary_min,
+                salary_max,
+            ):
+                print(
+                    "SYNCED TRACKER COMP:",
+                    row.get("company") or "",
+                    "|",
+                    row.get("role") or "",
+                    "|",
+                    f"${salary_min:,} - ${salary_max:,}",
+                )
 
     if updated:
         print(f"Backfilled match/description data for {updated} existing discovery rows.")
