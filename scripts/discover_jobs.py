@@ -40,6 +40,11 @@ DIRECT_ATS_HOSTS = {
     "job-boards.greenhouse.io": "greenhouse",
     "boards.greenhouse.io": "greenhouse",
     "jobs.smartrecruiters.com": "smartrecruiters",
+    "apply.workable.com": "workable",
+    "app.eightfold.ai": "eightfold",
+    "careers.jobvite.com": "jobvite",
+    "jobs.jobvite.com": "jobvite",
+    "join.com": "join",
 }
 
 GENERIC_JOB_PATH_MARKERS = (
@@ -279,6 +284,33 @@ def classify_direct_job_url(url):
     if host == "app.eightfold.ai" or host.endswith(".eightfold.ai"):
         if "/careers" in path or "/job" in path:
             return "eightfold"
+
+    if host.endswith(".recruitee.com"):
+        return "recruitee"
+
+    if host.endswith(".breezy.hr"):
+        return "breezy"
+
+    if host.endswith(".bamboohr.com"):
+        return "bamboohr"
+
+    if host.endswith(".jobs.personio.de") or host.endswith(".jobs.personio.com"):
+        return "personio"
+
+    if host.endswith(".teamtailor.com"):
+        return "teamtailor"
+
+    if host.endswith(".workable.com") or host == "apply.workable.com":
+        return "workable"
+
+    if host.endswith(".jobvite.com"):
+        return "jobvite"
+
+    if host == "join.com" or host.endswith(".join.com"):
+        return "join"
+
+    if host.endswith(".rippling.com"):
+        return "rippling"
 
     # Generic direct company-career pages are allowed only when the URL itself
     # looks like a specific job/careers route. Aggregators are rejected above.
@@ -1602,7 +1634,11 @@ def resolve_direct_ats(company, title, provider_url):
                 result["source_type"] = enriched.get("source_type") or result.get("source_type")
             return result
 
-    return expanded_direct_search_resolve(company, title)
+    # Do not fall back to search-engine indexing here. GitHub-hosted runners
+    # have proven unreliable for Bing/DDG discovery. Supplemental ATS families
+    # (iCIMS, Oracle/Taleo, Eightfold, generic company careers) are accepted when
+    # a source feed hands us a direct employer URL or redirect.
+    return None
 
 def jobicy(cfg):
     seen = set()
@@ -2439,9 +2475,10 @@ def main():
             job.setdefault("candidate_source", source_name.lower())
         raw.extend(batch)
 
-    # Search direct ATS domains by title, independent of the aggregator/company seed.
-    # This catches newly posted roles at companies we have never seen before.
-    raw.extend(title_first_ats_search(cfg))
+    # Broad discovery is handled by the multi-ATS OpenJobs sweep in the workflow.
+    # This supplemental collector intentionally avoids search-engine discovery and
+    # focuses on source feeds + direct employer redirects for ATS families such as
+    # iCIMS, Oracle/Taleo, Eightfold, and custom company-careers pages.
 
     # The old collector waited for an aggregator to surface every posting first.
     # Harvest ATS boards learned from previous successful resolutions and companies
