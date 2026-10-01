@@ -834,7 +834,10 @@ def greenhouse_job_details(company, title, url):
 
             r = SESSION.get(
                 api_url,
-                params={"content": "true"},
+                params={
+                    "content": "true",
+                    "pay_transparency": "true",
+                },
                 timeout=REQUEST_TIMEOUT,
             )
             if r.status_code != 200:
@@ -859,6 +862,49 @@ def greenhouse_job_details(company, title, url):
             elif loc:
                 location = clean(loc)
 
+            salary_min = None
+            salary_max = None
+            pay_ranges = job.get("pay_input_ranges") or []
+            if isinstance(pay_ranges, list):
+                # Prefer an explicitly base-salary/base-compensation range when present.
+                ranked_ranges = []
+                for pr in pay_ranges:
+                    if not isinstance(pr, dict):
+                        continue
+                    currency = str(pr.get("currency_type") or "").upper()
+                    if currency and currency != "USD":
+                        continue
+                    min_cents = pr.get("min_cents")
+                    max_cents = pr.get("max_cents")
+                    if min_cents is None or max_cents is None:
+                        continue
+                    try:
+                        lo = int(round(float(min_cents) / 100.0))
+                        hi = int(round(float(max_cents) / 100.0))
+                    except (TypeError, ValueError):
+                        continue
+                    if lo <= 0 or hi <= 0:
+                        continue
+                    if lo > hi:
+                        lo, hi = hi, lo
+                    label = clean(
+                        " ".join([
+                            str(pr.get("title") or ""),
+                            BeautifulSoup(str(pr.get("blurb") or ""), "html.parser").get_text(" "),
+                        ])
+                    ).lower()
+                    # De-prioritize OTE/bonus/commission ranges when a base range exists.
+                    if any(x in label for x in ("ote", "on-target", "on target", "bonus", "commission")):
+                        priority = 2
+                    elif any(x in label for x in ("base salary", "base compensation", "base pay", "annual salary", "salary range")):
+                        priority = 0
+                    else:
+                        priority = 1
+                    ranked_ranges.append((priority, lo, hi))
+                if ranked_ranges:
+                    ranked_ranges.sort(key=lambda x: (x[0], x[1], x[2]))
+                    _, salary_min, salary_max = ranked_ranges[0]
+
             direct_url = canonical_url(
                 job.get("absolute_url")
                 or f"https://job-boards.greenhouse.io/{candidate_board}/jobs/{job_id}"
@@ -870,6 +916,8 @@ def greenhouse_job_details(company, title, url):
                 "location": location,
                 "posted_date": iso_date(job.get("updated_at")),
                 "description": content,
+                "salary_min": salary_min,
+                "salary_max": salary_max,
                 "source_type": "greenhouse",
                 "match_score": 1.0,
             }
@@ -1303,6 +1351,19 @@ def greenhouse_resolve(company, title):
                 or {}
             ).get("name", "")
 
+            detailed = greenhouse_job_details(
+                company,
+                job.get("title") or title,
+                direct_url,
+            )
+            if detailed:
+                detailed["match_score"] = score
+                if not detailed.get("location"):
+                    detailed["location"] = location
+                if not detailed.get("posted_date"):
+                    detailed["posted_date"] = iso_date(job.get("updated_at"))
+                return detailed
+
             return {
                 "url": canonical_url(direct_url),
                 "title": job.get("title") or title,
@@ -1640,7 +1701,14 @@ def backfill_existing_matches():
                 + " Fit is provisional because the stored posting does not yet contain full JD text."
             )
 
-        salary_min, salary_max = extract_base_compensation(description)
+        salary_min = (refreshed or {}).get("salary_min")
+        salary_max = (refreshed or {}).get("salary_max")
+        if salary_min is None or salary_max is None:
+            parsed_min, parsed_max = extract_base_compensation(description)
+            if salary_min is None:
+                salary_min = parsed_min
+            if salary_max is None:
+                salary_max = parsed_max
 
         payload = {
             "match_score": score,
@@ -1991,7 +2059,14 @@ def main():
             resolved_description,
             resolved_location,
         )
-        salary_min, salary_max = extract_base_compensation(resolved_description)
+        salary_min = ats.get("salary_min")
+        salary_max = ats.get("salary_max")
+        if salary_min is None or salary_max is None:
+            parsed_min, parsed_max = extract_base_compensation(resolved_description)
+            if salary_min is None:
+                salary_min = parsed_min
+            if salary_max is None:
+                salary_max = parsed_max
 
         now_iso = datetime.now(timezone.utc).isoformat()
 
