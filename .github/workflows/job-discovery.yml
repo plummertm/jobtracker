@@ -45,23 +45,36 @@ jobs:
         run: |
           rm -rf _vendor/openjobs
           git clone --depth 1 https://github.com/outscal/OpenJobs.git _vendor/openjobs
+
+      - name: Prepare multi-ATS harvester
+        run: |
           cd _vendor/openjobs
           npm install
+          test -f templates/portals.example.yml
+          cp templates/portals.example.yml portals.yml
+          test -f portals.yml
+          echo "OpenJobs configuration prepared."
 
       - name: Harvest live jobs across supported ATS platforms
         run: |
           cd _vendor/openjobs
-          rm -f data/harvest-history.tsv
           node harvest.mjs --no-filter
           echo ""
           echo "Harvest output:"
           ls -lah output || true
           echo ""
           echo "CSV row counts:"
+          found=0
           for f in output/jobs-*.csv; do
             [ -e "$f" ] || continue
-            echo "$(basename "$f"): $(($(wc -l < "$f") - 1)) jobs"
+            found=1
+            rows=$(($(wc -l < "$f") - 1))
+            echo "$(basename "$f"): $rows jobs"
           done
+          if [ "$found" -eq 0 ]; then
+            echo "ERROR: OpenJobs produced no jobs CSV."
+            exit 1
+          fi
 
       - name: Import multi-ATS jobs into Supabase
         env:
