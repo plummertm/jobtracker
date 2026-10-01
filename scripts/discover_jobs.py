@@ -529,6 +529,89 @@ def calculate_match(title, description, location=""):
     return score, summary
 
 
+
+def _money_to_number(raw):
+    if raw is None:
+        return None
+    text = str(raw).strip().lower().replace(',', '')
+    mult = 1
+    if text.endswith('k'):
+        mult = 1000
+        text = text[:-1]
+    try:
+        value = float(text) * mult
+    except ValueError:
+        return None
+    if value <= 0:
+        return None
+    return int(round(value))
+
+
+def extract_base_compensation(description):
+    """Return (salary_min, salary_max) for a clearly annual/base salary range.
+
+    We intentionally require compensation-language near the numbers so revenue, ARR,
+    contract values, bonus targets, etc. are not mistaken for salary.
+    """
+    text = clean(description or '')
+    if not text:
+        return None, None
+
+    # Normalize dash variants but keep original words for context checks.
+    normalized = text.replace('–', '-').replace('—', '-')
+
+    context_terms = (
+        'base compensation', 'base salary', 'salary range', 'compensation range',
+        'annual salary', 'annual base', 'pay range', 'base pay', 'salary'
+    )
+    reject_terms = ('ote', 'on-target earnings', 'on target earnings', 'bonus', 'commission')
+
+    money = r'\$?\s*(\d{2,3}(?:,\d{3})+|\d{2,3}(?:\.\d+)?\s*[kK])'
+    range_re = re.compile(
+        money + r'\s*(?:-|to|through)\s*\$?\s*(\d{2,3}(?:,\d{3})+|\d{2,3}(?:\.\d+)?\s*[kK])',
+        re.I,
+    )
+
+    candidates = []
+    for m in range_re.finditer(normalized):
+        start = max(0, m.start() - 180)
+        end = min(len(normalized), m.end() + 180)
+        ctx = normalized[start:end].lower()
+        before = normalized[max(0, m.start() - 120):m.start()].lower()
+        if not any(term in ctx for term in context_terms):
+            continue
+
+        lo = _money_to_number(m.group(1))
+        hi = _money_to_number(m.group(2))
+        if lo is None or hi is None:
+            continue
+        if lo > hi:
+            lo, hi = hi, lo
+
+        # Ignore hourly-looking or obviously non-salary ranges.
+        if lo < 20000 or hi < 20000:
+            continue
+
+        # Prefer base/salary context over OTE/bonus context.
+        base_terms = (
+            'base compensation', 'base salary', 'annual base', 'base pay', 'salary range', 'annual salary'
+        )
+        # The label must precede this specific numeric range. This prevents an
+        # earlier OTE range from borrowing a later "base salary" label.
+        base_signal = any(term in before for term in base_terms)
+        rejected = any(term in before for term in reject_terms) and not base_signal
+        if rejected:
+            continue
+
+        candidates.append((0 if base_signal else 1, m.start(), lo, hi))
+
+    if not candidates:
+        return None, None
+
+    candidates.sort()
+    _, _, lo, hi = candidates[0]
+    return lo, hi
+
 def title_similarity(candidate, actual):
     a = norm(candidate)
     b = norm(actual)
@@ -1374,7 +1457,7 @@ def existing_keys():
         if row.get("source_key")
     }
 
-def update_existing_match(key, match_score, match_summary, last_seen_at):
+def update_existing_match(key, match_score, match_summary, last_seen_at, salary_min=None, salary_max=None):
     headers = {
         **supabase_headers(),
         "Content-Type": "application/json",
@@ -1390,6 +1473,8 @@ def update_existing_match(key, match_score, match_summary, last_seen_at):
         data=json.dumps({
             "match_score": match_score,
             "match_summary": match_summary,
+            "salary_min": salary_min,
+            "salary_max": salary_max,
             "last_seen_at": last_seen_at,
         }),
         timeout=30,
@@ -1403,7 +1488,7 @@ def backfill_existing_matches():
         f"{SUPABASE_URL}/rest/v1/discovered_jobs",
         headers=supabase_headers(),
         params={
-            "select": "id,role,description,location,match_score,match_summary",
+            "select": "id,role,description,location,match_score,match_summary,salary_min,salary_max",
             "user_id": f"eq.{USER_ID}",
             "limit": "10000",
         },
@@ -1416,9 +1501,6 @@ def backfill_existing_matches():
         job_id = row.get("id")
         if not job_id:
             continue
-        if row.get("match_score") is not None and row.get("match_summary"):
-            continue
-
         score, summary = calculate_match(
             row.get("role") or "",
             row.get("description") or "",
@@ -1431,6 +1513,26 @@ def backfill_existing_matches():
                 + " Fit is provisional because the stored posting does not yet contain full JD text."
             )
 
+        salary_min, salary_max = extract_base_compensation(row.get("description") or "")
+        payload = {
+            "match_score": score,
+            "match_summary": summary,
+            "last_seen_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if salary_min is not None:
+            payload["salary_min"] = salary_min
+        if salary_max is not None:
+            payload["salary_max"] = salary_max
+
+        # Avoid unnecessary writes when neither match nor compensation needs changing.
+        needs_match = row.get("match_score") is None or not row.get("match_summary")
+        needs_comp = (
+            salary_min is not None and salary_max is not None and
+            (row.get("salary_min") != salary_min or row.get("salary_max") != salary_max)
+        )
+        if not needs_match and not needs_comp:
+            continue
+
         pr = SESSION.patch(
             f"{SUPABASE_URL}/rest/v1/discovered_jobs",
             headers={
@@ -1442,11 +1544,7 @@ def backfill_existing_matches():
                 "id": f"eq.{job_id}",
                 "user_id": f"eq.{USER_ID}",
             },
-            data=json.dumps({
-                "match_score": score,
-                "match_summary": summary,
-                "last_seen_at": datetime.now(timezone.utc).isoformat(),
-            }),
+            data=json.dumps(payload),
             timeout=30,
         )
         if pr.status_code >= 300:
@@ -1745,6 +1843,7 @@ def main():
             resolved_description,
             resolved_location,
         )
+        salary_min, salary_max = extract_base_compensation(resolved_description)
 
         now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -1754,6 +1853,8 @@ def main():
                 match_score,
                 match_summary,
                 now_iso,
+                salary_min,
+                salary_max,
             )
             duplicates += 1
             print(
@@ -1782,6 +1883,8 @@ def main():
             ),
             "match_score": match_score,
             "match_summary": match_summary,
+            "salary_min": salary_min,
+            "salary_max": salary_max,
             "source_site": (
                 f"{company} Careers · "
                 f"{ats.get('source_type', source_type(direct_url)).title()}"
