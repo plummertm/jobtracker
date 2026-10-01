@@ -45,8 +45,11 @@ DIRECT_ATS_HOSTS = {
 GENERIC_JOB_PATH_MARKERS = (
     "/careers/job/",
     "/careers/jobs/",
+    "/careers/position/",
+    "/careers/open-positions/",
     "/career/job/",
     "/career/jobs/",
+    "/company/careers/",
     "/jobs/job/",
     "/jobs/",
     "/job/",
@@ -54,6 +57,11 @@ GENERIC_JOB_PATH_MARKERS = (
     "/positions/",
     "/opportunities/",
 )
+
+JOB_ID_QUERY_KEYS = {
+    "gh_jid", "jobid", "job_id", "jid", "reqid", "req_id",
+    "requisitionid", "requisition_id", "requisition", "job"
+}
 
 BLOCKED_HOST_PARTS = [
     "linkedin.",
@@ -110,6 +118,14 @@ US_ELIGIBLE_TERMS = [
 GLOBAL_REMOTE_TERMS = [
     "anywhere", "worldwide", "global remote", "remote worldwide"
 ]
+
+COMPANY_NAME_ALIASES = {
+    # Rebrands / names used by provider feeds versus current careers sites.
+    "tripactions": ["Navan"],
+    "navan": ["TripActions"],
+    "built technologies": ["Built", "GetBuilt"],
+    "forma ai": ["Forma.ai", "Forma AI"],
+}
 
 # Resume-supported evidence used for fit scoring.
 # This is intentionally limited to experience explicitly supported by Toni's resume.
@@ -219,8 +235,15 @@ def host_of(url):
 def canonical_url(url):
     try:
         p = urllib.parse.urlsplit(url)
+        # Preserve query parameters that identify a specific job. This matters
+        # for branded Greenhouse/company career pages such as ?gh_jid=12345.
+        kept = []
+        for key, value in urllib.parse.parse_qsl(p.query, keep_blank_values=False):
+            if key.lower() in JOB_ID_QUERY_KEYS and value:
+                kept.append((key, value))
+        query = urllib.parse.urlencode(kept)
         return urllib.parse.urlunsplit(
-            (p.scheme or "https", p.netloc.lower(), p.path.rstrip("/"), "", "")
+            (p.scheme or "https", p.netloc.lower(), p.path.rstrip("/"), query, "")
         )
     except Exception:
         return url
@@ -234,6 +257,12 @@ def classify_direct_job_url(url):
 
     if host in DIRECT_ATS_HOSTS:
         return DIRECT_ATS_HOSTS[host]
+
+    # Many companies use a branded careers domain in front of Greenhouse.
+    # The gh_jid query parameter identifies the specific Greenhouse job.
+    query_keys = {k.lower() for k, _ in urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query)}
+    if "gh_jid" in query_keys:
+        return "greenhouse"
 
     if host.endswith(".myworkdayjobs.com"):
         return "workday"
@@ -578,6 +607,16 @@ def company_slug_variants(company):
         "aviatrix": ["aviatrix"],
         "upguard": ["upguard"],
         "semperis": ["semperis"],
+
+        # Verified branded ATS board aliases. These are resolver aliases only;
+        # they are not a company watchlist and do not control which companies
+        # are discovered.
+        "forma ai": ["formaaiinc", "formaai"],
+        "echodyne": ["echodynecorp", "echodyne"],
+        "built technologies": ["getbuilt", "builttechnologies"],
+        "nebius": ["nebius"],
+        "tripactions": ["navan", "tripactions"],
+        "navan": ["navan", "tripactions"],
     }
 
     candidates.extend(aliases.get(base, []))
@@ -756,6 +795,28 @@ def direct_from_provider_page(url, company="", title=""):
     if not url:
         return None
 
+    def resolve_candidate(candidate_url):
+        if not candidate_url:
+            return None
+        try:
+            rr = SESSION.get(candidate_url, timeout=REQUEST_TIMEOUT, allow_redirects=True)
+            if rr.status_code >= 400:
+                return None
+            final = canonical_url(rr.url)
+            if not is_direct_ats(final):
+                return None
+            return fetch_direct_job_details(final, title) or {
+                "url": final,
+                "title": title,
+                "location": "",
+                "posted_date": None,
+                "description": "",
+                "source_type": source_type(final),
+                "match_score": 1.0,
+            }
+        except Exception:
+            return None
+
     try:
         r = SESSION.get(url, timeout=REQUEST_TIMEOUT, allow_redirects=True)
         r.raise_for_status()
@@ -773,23 +834,47 @@ def direct_from_provider_page(url, company="", title=""):
             }
 
         soup = BeautifulSoup(r.text, "html.parser")
-        candidates = []
+        direct_candidates = []
+        redirect_candidates = []
         seen = set()
 
         for link in soup.find_all("a", href=True):
-            href = urllib.parse.urljoin(final_url, link.get("href"))
+            href = urllib.parse.urljoin(r.url, link.get("href"))
             candidate = canonical_url(href)
-            if candidate in seen or not is_direct_ats(candidate):
+            if candidate in seen:
                 continue
             seen.add(candidate)
-            anchor = clean(link.get_text(" "))
-            score = _candidate_link_score(candidate, anchor, company, title)
-            if score >= 0:
-                candidates.append((score, candidate))
 
-        candidates.sort(key=lambda item: item[0], reverse=True)
-        for _, candidate in candidates[:8]:
+            anchor = clean(link.get_text(" "))
+            anchor_n = norm(anchor)
+
+            if is_direct_ats(candidate):
+                score = _candidate_link_score(candidate, anchor, company, title)
+                direct_candidates.append((score, candidate))
+                continue
+
+            # Job boards often hide the employer URL behind an internal Apply
+            # redirect. Follow only links whose text clearly represents a job
+            # application/view action; never store the provider URL itself.
+            if any(term in anchor_n for term in (
+                "apply", "apply now", "apply for this job", "view job",
+                "view company", "original listing", "company website",
+                "employer site", "career site"
+            )):
+                redirect_candidates.append(candidate)
+
+        direct_candidates.sort(key=lambda item: item[0], reverse=True)
+        for _, candidate in direct_candidates[:10]:
             details = fetch_direct_job_details(candidate, title)
+            if not details:
+                continue
+            actual_title = details.get("title") or title
+            if title and actual_title and title_similarity(title, actual_title) < 0.48:
+                continue
+            return details
+
+        for candidate in redirect_candidates[:12]:
+            details = resolve_candidate(candidate)
             if not details:
                 continue
             actual_title = details.get("title") or title
@@ -801,7 +886,6 @@ def direct_from_provider_page(url, company="", title=""):
         pass
 
     return None
-
 
 def _bing_rss_links(query):
     try:
@@ -827,26 +911,45 @@ def _bing_rss_links(query):
 def expanded_direct_search_resolve(company, title):
     # Best-effort fallback for ATS families without a simple public board API
     # (Workday, iCIMS, Oracle/Taleo, Eightfold) and branded company-careers pages.
-    query = f'"{company}" "{title}" jobs careers'
-    results = _bing_rss_links(query)
+    # Run several focused searches because provider feeds often use an old brand
+    # name or a title variant that differs slightly from the company careers page.
+    company_names = [company]
+    company_names.extend(COMPANY_NAME_ALIASES.get(norm(company), []))
+
+    title_variants = [title]
+    simplified = re.sub(r"\s*[-–—]\s*(?:cmeg|public sector|americas|us|usa)\s*$", "", title, flags=re.I).strip()
+    if simplified and simplified.lower() != title.lower():
+        title_variants.append(simplified)
+
+    queries = []
+    for company_name in company_names:
+        for title_variant in title_variants:
+            queries.extend([
+                f'"{company_name}" "{title_variant}" careers',
+                f'"{company_name}" "{title_variant}" greenhouse',
+                f'"{company_name}" "{title_variant}" workday',
+                f'"{company_name}" "{title_variant}" jobs',
+            ])
+
     candidates = []
     seen = set()
 
-    for link, result_title in results:
-        candidate = canonical_url(link)
-        if candidate in seen or not is_direct_ats(candidate):
-            continue
-        seen.add(candidate)
-        score = _candidate_link_score(candidate, result_title, company, title)
-        candidates.append((score, candidate))
+    for query in dict.fromkeys(queries):
+        for link, result_title in _bing_rss_links(query):
+            candidate = canonical_url(link)
+            if candidate in seen or not is_direct_ats(candidate):
+                continue
+            seen.add(candidate)
+            score = _candidate_link_score(candidate, result_title, company, title)
+            candidates.append((score, candidate))
 
     candidates.sort(key=lambda item: item[0], reverse=True)
-    for _, candidate in candidates[:10]:
+    for _, candidate in candidates[:20]:
         details = fetch_direct_job_details(candidate, title)
         if not details:
             continue
         actual_title = details.get("title") or title
-        if title_similarity(title, actual_title) < 0.52:
+        if title_similarity(title, actual_title) < 0.50:
             continue
         return details
 
@@ -1003,8 +1106,15 @@ def greenhouse_resolve(company, title):
 
             direct_url = job.get("absolute_url") or ""
 
-            if not is_direct_ats(direct_url):
+            # Greenhouse often returns a branded company careers URL with
+            # ?gh_jid=<id> instead of job-boards.greenhouse.io. Treat that as a
+            # direct Greenhouse job and preserve the job-identifying query.
+            if not direct_url:
                 continue
+            if not is_direct_ats(direct_url):
+                parsed_qs = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(direct_url).query))
+                if not parsed_qs.get("gh_jid"):
+                    continue
 
             location = (
                 job.get("location")
