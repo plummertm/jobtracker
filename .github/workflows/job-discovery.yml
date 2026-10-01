@@ -11,18 +11,11 @@ permissions:
 jobs:
   discover:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
-      - name: Check out tracker repository
+      - name: Check out job tracker
         uses: actions/checkout@v4
-
-      - name: Check out multi-ATS harvester
-        uses: actions/checkout@v4
-        with:
-          repository: outscal/OpenJobs
-          path: _vendor/openjobs
-          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -37,84 +30,54 @@ jobs:
       - name: Install Python dependencies
         run: pip install requests beautifulsoup4
 
-      - name: Install harvester dependencies
-        working-directory: _vendor/openjobs
-        run: npm install --ignore-scripts --no-audit --no-fund
-
-      - name: Create neutral harvester config
-        working-directory: _vendor/openjobs
-        shell: bash
+      - name: Validate Python discovery files
         run: |
-          cat > portals.yml <<'YAML'
-          title_filter:
-            positive: []
-            negative: []
-          locations:
-            include: []
-            exclude: []
-          industry_allowlist: []
-          ats_allowlist: []
-          manual_only:
-            - linkedin.com
-            - indeed.com
-            - ziprecruiter.com
-            - glassdoor.com
-            - wellfound.com
-          YAML
-
-      - name: Validate local discovery code
-        shell: bash
-        run: |
-          python -m py_compile scripts/discover_jobs.py
-          python -m py_compile scripts/import_openjobs.py
+          python -m py_compile scripts/discover_jobs.py scripts/import_openjobs.py
           python - <<'PY'
           import ast
           from pathlib import Path
-          for p in ("scripts/discover_jobs.py", "scripts/import_openjobs.py"):
-              ast.parse(Path(p).read_text())
-              print("AST OK:", p)
+          for p in [Path("scripts/discover_jobs.py"), Path("scripts/import_openjobs.py")]:
+              ast.parse(p.read_text(encoding="utf-8"))
+              print(f"AST OK: {p}")
           PY
 
-      - name: Verify harvester adapters
-        shell: bash
+      - name: Clone multi-ATS harvester
         run: |
-          test -f _vendor/openjobs/harvest.mjs
-          test -f _vendor/openjobs/data/companies_v2.json
-          test -d _vendor/openjobs/adapters
-          echo "OpenJobs revision: $(git -C _vendor/openjobs rev-parse HEAD)"
-          echo "Adapter files:"
-          find _vendor/openjobs/adapters -maxdepth 1 -type f -name '*.mjs' -printf '%f\n' | sort
+          rm -rf _vendor/openjobs
+          git clone --depth 1 https://github.com/outscal/OpenJobs.git _vendor/openjobs
+          cd _vendor/openjobs
+          npm install
 
-      - name: Harvest live jobs from all supported ATS platforms
-        working-directory: _vendor/openjobs
-        env:
-          HARVEST_VERBOSE: "0"
-        run: node harvest.mjs --no-filter
-
-      - name: Locate harvest CSV
-        id: harvest
-        shell: bash
+      - name: Harvest live jobs across supported ATS platforms
         run: |
-          FILE="$(find _vendor/openjobs/output -maxdepth 1 -type f -name 'jobs-*.csv' | sort | tail -n 1)"
-          if [ -z "$FILE" ]; then
-            echo "No jobs CSV was produced; creating an empty file so import can exit cleanly."
-            FILE="_vendor/openjobs/output/jobs-empty.csv"
-            mkdir -p _vendor/openjobs/output
-            printf 'company,industry,role,location,remote,department,employment_type,posted_date,ats,detail_url,apply_url,matched_keywords\n' > "$FILE"
-          fi
-          echo "file=$FILE" >> "$GITHUB_OUTPUT"
-          echo "Using harvest file: $FILE"
-          wc -l "$FILE"
+          cd _vendor/openjobs
+          rm -f data/harvest-history.tsv
+          node harvest.mjs --no-filter
+          echo ""
+          echo "Harvest output:"
+          ls -lah output || true
+          echo ""
+          echo "CSV row counts:"
+          for f in output/jobs-*.csv; do
+            [ -e "$f" ] || continue
+            echo "$(basename "$f"): $(($(wc -l < "$f") - 1)) jobs"
+          done
 
-      - name: Import, filter, score, and sync Supabase
+      - name: Import multi-ATS jobs into Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_USER_ID: ${{ secrets.SUPABASE_USER_ID }}
-        run: python scripts/import_openjobs.py "${{ steps.harvest.outputs.file }}"
+        run: |
+          CSV="$(ls -1t _vendor/openjobs/output/jobs-*.csv 2>/dev/null | head -1)"
+          if [ -z "$CSV" ]; then
+            echo "ERROR: Multi-ATS harvester produced no jobs CSV."
+            exit 1
+          fi
+          echo "Importing: $CSV"
+          python scripts/import_openjobs.py "$CSV"
 
-
-      - name: Supplemental discovery for iCIMS, Oracle/Taleo, Eightfold, and direct company careers
+      - name: Run supplemental direct discovery
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
