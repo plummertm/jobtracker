@@ -76,7 +76,7 @@ FOREIGN_LOCATION_TERMS = [
 
 EAST_COAST_TERMS = [
     "east coast", "eastern us", "eastern united states", "eastern time",
-    "est", "edt", "northeast", "mid atlantic", "mid-atlantic", "southeast",
+    "northeast", "mid atlantic", "mid-atlantic", "southeast",
     "washington dc", "district of columbia", "dc metro", "dmv",
     "maryland", "virginia", "arlington", "alexandria", "mclean", "tysons",
     "reston", "herndon", "fairfax", "bethesda", "rockville", "baltimore",
@@ -86,10 +86,15 @@ EAST_COAST_TERMS = [
     "georgia", "atlanta", "florida", "miami", "tampa", "orlando"
 ]
 
-US_REMOTE_TERMS = [
+US_ELIGIBLE_TERMS = [
+    "united states", "usa", "u s", "us",
     "remote us", "remote usa", "remote united states", "united states remote",
     "us remote", "u s remote", "anywhere in the us", "anywhere in the united states",
-    "united states", "usa"
+    "north america", "americas"
+]
+
+GLOBAL_REMOTE_TERMS = [
+    "anywhere", "worldwide", "global remote", "remote worldwide"
 ]
 
 # Resume-supported evidence used for fit scoring.
@@ -276,6 +281,13 @@ def title_matches_config(title, cfg):
 
     return False
 
+def _has_location_phrase(location_n, phrase):
+    phrase_n = norm(phrase)
+    if not phrase_n:
+        return False
+    return f" {phrase_n} " in f" {location_n} "
+
+
 def location_matches(location, cfg):
     if not cfg.get("us_only", True):
         return True
@@ -285,20 +297,28 @@ def location_matches(location, cfg):
     if not location_n:
         return False
 
-    # Foreign always loses, even if the role also says Remote.
-    if any(term in location_n for term in FOREIGN_LOCATION_TERMS):
-        return False
-
-    # Explicit U.S.-remote / nationwide roles.
-    if any(term in location_n for term in US_REMOTE_TERMS):
+    # If the posting explicitly includes the U.S., keep it even when other
+    # countries/regions are also listed. Examples: "Canada, USA" or
+    # "Canada, Europe, USA". Toni can still apply to the U.S. version.
+    if any(_has_location_phrase(location_n, term) for term in US_ELIGIBLE_TERMS):
         return True
 
-    # Plain "Remote" is allowed only because foreign regions were already rejected.
+    # "Anywhere" / worldwide remote roles are allowed to continue to ATS
+    # resolution because they include U.S. applicants unless the posting later
+    # resolves to a specifically foreign-only location.
+    if any(_has_location_phrase(location_n, term) for term in GLOBAL_REMOTE_TERMS):
+        return True
+
+    # Explicit foreign-only location with no U.S. eligibility remains excluded.
+    if any(_has_location_phrase(location_n, term) for term in FOREIGN_LOCATION_TERMS):
+        return False
+
+    # Plain Remote is allowed; final ATS resolution is checked again below.
     if location_n == "remote" or location_n.startswith("remote "):
         return True
 
     # East Coast / DMV.
-    if any(term in location_n for term in EAST_COAST_TERMS):
+    if any(_has_location_phrase(location_n, term) for term in EAST_COAST_TERMS):
         return True
 
     return False
