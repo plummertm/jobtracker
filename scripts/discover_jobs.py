@@ -394,15 +394,58 @@ def _has_location_phrase(location_n, phrase):
 
 
 
+
 def _is_generic_us_location(location_n):
     compact = re.sub(r"\s+", " ", location_n).strip()
     return compact in {
         "united states", "usa", "us", "u s",
-        "united states of america", "north america", "americas",
+        "united states of america",
     }
 
 
-def _remote_evidence(location="", description=""):
+DMV_TERMS = (
+    "washington dc", "washington d c", "district of columbia", "dc metro", "dmv",
+    "maryland", "md", "virginia", "va",
+    "arlington", "alexandria", "mclean", "tysons", "reston", "herndon",
+    "fairfax", "falls church", "bethesda", "rockville", "silver spring",
+    "gaithersburg", "columbia md", "baltimore", "waldorf",
+)
+
+
+def _dmv_evidence(location="", description=""):
+    text = norm(" ".join([location or "", description or ""]))
+    padded = f" {text} "
+    for term in DMV_TERMS:
+        term_n = norm(term)
+        if len(term_n) <= 2:
+            if f" {term_n} " in padded:
+                return True
+        elif term_n in text:
+            return True
+    return False
+
+
+def _onsite_evidence(location="", description=""):
+    text = norm(" ".join([location or "", description or ""]))
+    phrases = (
+        "onsite", "on site", "on-site",
+        "in office", "in-office", "work from the office",
+        "work in the office", "office days", "days in office",
+        "days per week in office", "days a week in office",
+        "commutable distance", "commute distance",
+        "hub location", "hub locations",
+        "work onsite", "work on site", "work on-site",
+        "report to the office",
+    )
+    return any(p in text for p in phrases)
+
+
+def _strong_remote_evidence(location="", description=""):
+    """Remote evidence strong enough to treat the role as genuinely remote.
+
+    Intentionally does NOT treat phrases such as "work remotely on Mondays"
+    as fully remote.
+    """
     location_n = norm(location)
     description_n = norm(description)
 
@@ -411,83 +454,129 @@ def _remote_evidence(location="", description=""):
         for phrase in (
             "remote", "remote us", "remote usa", "remote united states",
             "united states remote", "us remote", "u s remote",
-            "remote north america", "north america remote",
+            "remote - us", "remote - usa", "remote - united states",
+            "remote within the united states",
         )
     )
 
     description_remote = any(
         phrase in description_n
         for phrase in (
-            "fully remote", "remote role", "remote position",
+            "fully remote", "fully-remote", "100 remote", "100% remote",
+            "remote role", "remote position",
             "this role is remote", "this position is remote",
-            "work remotely", "remote within the united states",
-            "remote in the united states", "remote us", "remote usa",
-            "li remote",
+            "remote within the united states", "remote in the united states",
+            "us remote", "usa remote", "remote us", "remote usa",
+            "work from anywhere in the united states",
+            "work from anywhere in the us",
+            "li remote", "li-remote",
         )
     )
+
     return location_remote or description_remote
 
 
 def _hybrid_evidence(location="", description=""):
     text = norm(" ".join([location or "", description or ""]))
-    return any(
+
+    explicit_hybrid = any(
         phrase in text
         for phrase in (
-            "hybrid", "li hybrid", "in office", "in-office",
+            "hybrid", "li hybrid", "li-hybrid",
+            "hybrid schedule", "hybrid work",
         )
     )
+    if explicit_hybrid:
+        return True
+
+    onsite = _onsite_evidence(location, description)
+    partial_remote = any(
+        phrase in text
+        for phrase in (
+            "remotely on", "remote on monday", "remote monday",
+            "work remotely one day", "work remotely two days",
+            "work from home one day", "work from home two days",
+            "flexibility to work remotely", "flexible remote day",
+        )
+    )
+    return onsite and partial_remote
 
 
 def infer_work_arrangement(location="", description=""):
-    if _remote_evidence(location, description):
-        return "Remote"
+    # Hybrid/onsite obligations must win over weak remote-day language.
     if _hybrid_evidence(location, description):
         return "Hybrid"
+
+    if _onsite_evidence(location, description):
+        return "Onsite"
+
+    if _strong_remote_evidence(location, description):
+        return "Remote"
+
     return None
 
 
 def location_matches(location, cfg, description=""):
+    """Strict geography/work-arrangement gate.
+
+    Keep ONLY:
+      1) U.S.-eligible remote roles, anywhere in the U.S.
+      2) Hybrid roles whose required office geography includes DC, Maryland, or Virginia.
+
+    Reject:
+      - onsite roles everywhere
+      - hybrid roles outside DC/MD/VA
+      - jobs that only say "United States" with no genuine remote evidence
+      - foreign-only remote roles
+    """
     if not cfg.get("us_only", True):
         return True
 
     location_n = norm(location)
-    if not location_n:
-        return False
+    description_n = norm(description)
+    combined = norm(" ".join([location or "", description or ""]))
+
+    arrangement = infer_work_arrangement(location, description)
 
     has_us = any(_has_location_phrase(location_n, term) for term in US_ELIGIBLE_TERMS)
-    has_foreign = any(_has_location_phrase(location_n, term) for term in FOREIGN_LOCATION_TERMS)
-    east_coast = any(_has_location_phrase(location_n, term) for term in EAST_COAST_TERMS)
-    global_remote = any(_has_location_phrase(location_n, term) for term in GLOBAL_REMOTE_TERMS)
-    remote = _remote_evidence(location, description)
+    # The JD itself may state U.S. eligibility even when the ATS location is generic.
+    has_us = has_us or any(
+        phrase in description_n
+        for phrase in (
+            "united states", "within the us", "within the u s",
+            "within the usa", "anywhere in the us",
+            "anywhere in the united states", "us based", "u s based",
+            "usa based",
+        )
+    )
 
-    # Explicitly global remote can include the U.S. unless the location is clearly foreign-only.
-    if global_remote and not (has_foreign and not has_us):
-        return True
+    has_foreign = any(
+        _has_location_phrase(location_n, term) for term in FOREIGN_LOCATION_TERMS
+    )
+    global_remote = any(
+        _has_location_phrase(location_n, term) for term in GLOBAL_REMOTE_TERMS
+    )
 
-    # Explicit U.S.-eligible remote evidence is acceptable anywhere in the country.
-    if remote and (has_us or east_coast or _is_generic_us_location(location_n)):
-        return True
+    if arrangement == "Remote":
+        # Foreign-only remote is not eligible.
+        if has_foreign and not has_us and not global_remote:
+            return False
 
-    # East Coast / DMV physical or hybrid roles are acceptable.
-    if east_coast:
-        return True
+        # Explicit U.S. eligibility or worldwide/global remote is allowed.
+        if has_us or global_remote or _is_generic_us_location(location_n):
+            return True
 
-    # Foreign-only roles remain excluded.
-    if has_foreign and not has_us:
+        # A bare "Remote" label is allowed only if the JD does not restrict it
+        # to a foreign country. This is still a direct-posting remote signal.
+        if location_n == "remote" and not has_foreign:
+            return True
+
         return False
 
-    # Broad national labels are acceptable because they do not pin the job to a
-    # specific non-East-Coast city.
-    if has_us and _is_generic_us_location(location_n):
-        return True
+    if arrangement == "Hybrid":
+        return _dmv_evidence(location, description)
 
-    # Plain "Remote" is provisionally acceptable and will be validated again
-    # after direct-job enrichment.
-    if location_n == "remote":
-        return True
-
-    # Specific non-East-Coast U.S. cities/states are excluded unless the
-    # direct posting itself contains explicit remote evidence.
+    # Onsite or unknown work arrangement is out.
     return False
 
 
@@ -2521,7 +2610,7 @@ def purge_discovery_noise(min_match_score=80, max_age_days=30):
         f"{SUPABASE_URL}/rest/v1/discovered_jobs",
         headers=supabase_headers(),
         params={
-            "select": "id,role,description,location,posted_date,first_seen_at,match_score,decision,pass_reason",
+            "select": "id,company,role,job_url,description,location,posted_date,first_seen_at,match_score,decision,pass_reason",
             "user_id": f"eq.{USER_ID}",
             "limit": "10000",
         },
@@ -2548,6 +2637,24 @@ def purge_discovery_noise(min_match_score=80, max_age_days=30):
         ):
             continue
 
+        # Existing Discovery rows may contain stale/incomplete ATS metadata from
+        # an earlier scan. Re-fetch the direct posting before re-validating
+        # clearance, location, and work arrangement.
+        fresh_role = row.get("role") or ""
+        fresh_description = row.get("description") or ""
+        fresh_location = row.get("location") or ""
+
+        if row.get("job_url"):
+            refreshed = fetch_direct_job_details(
+                row.get("job_url") or "",
+                fresh_role,
+                row.get("company") or "",
+            )
+            if refreshed:
+                fresh_role = refreshed.get("title") or fresh_role
+                fresh_description = refreshed.get("description") or fresh_description
+                fresh_location = refreshed.get("location") or fresh_location
+
         score = row.get("match_score")
         try:
             score_num = float(score) if score is not None else None
@@ -2559,15 +2666,15 @@ def purge_discovery_noise(min_match_score=80, max_age_days=30):
             should_purge = True
             low_match += 1
 
-        if requires_active_ts(row.get("role"), row.get("description")):
+        if requires_active_ts(fresh_role, fresh_description):
             if not should_purge:
                 clearance_blocked += 1
             should_purge = True
 
         if not location_matches(
-            row.get("location") or "",
+            fresh_location,
             load_config(),
-            row.get("description") or "",
+            fresh_description,
         ):
             if not should_purge:
                 geography_blocked += 1
@@ -2601,7 +2708,7 @@ def purge_discovery_noise(min_match_score=80, max_age_days=30):
             f"Discovery cleanup removed {len(purge_ids)} rows "
             f"({low_match} below {min_match_score}% match; "
             f"{clearance_blocked} clearance-blocked; "
-            f"{geography_blocked} outside target geography; "
+            f"{geography_blocked} not US-remote or DMV-hybrid; "
             f"{stale} stale > {max_age_days} days)."
         )
     else:
