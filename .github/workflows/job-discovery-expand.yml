@@ -1,0 +1,132 @@
+name: Job Discovery ATS Expansion
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 3 * * 0"
+      timezone: "America/New_York"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: job-discovery-ats-expansion
+  cancel-in-progress: false
+
+jobs:
+  expand:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Expansion heartbeat
+        run: |
+          echo "ATS expansion started."
+          echo "UTC: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Eastern: $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
+
+      - name: Check out job tracker
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Validate importer files
+        run: |
+          python -m py_compile scripts/discover_jobs.py scripts/import_openjobs.py
+
+      - name: Clone OpenJobs
+        run: |
+          rm -rf _vendor/openjobs
+          git clone --depth 1 https://github.com/outscal/OpenJobs.git _vendor/openjobs
+          cd _vendor/openjobs
+          npm install
+          test -f templates/portals.example.yml
+          cp templates/portals.example.yml portals.yml
+
+      - name: Probe unrouted companies for ATS boards
+        run: |
+          cd _vendor/openjobs
+          node probe-ats.mjs
+
+          PROBE_CSV="$(ls -1t output/ats-probe-*.csv 2>/dev/null | head -1)"
+          if [ -z "$PROBE_CSV" ]; then
+            echo "ERROR: ATS probe produced no CSV."
+            exit 1
+          fi
+
+          echo "Probe output: $PROBE_CSV"
+          echo "Probe rows: $(($(wc -l < "$PROBE_CSV") - 1))"
+          echo "PROBE_CSV=$PROBE_CSV" >> "$GITHUB_ENV"
+
+      - name: Upload probe CSV for audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: ats-probe-${{ github.run_id }}
+          path: _vendor/openjobs/${{ env.PROBE_CSV }}
+          retention-days: 30
+
+      - name: Dry-run conservative ATS merge
+        run: |
+          cd _vendor/openjobs
+          node merge-probe-hits.mjs --csv "$PROBE_CSV" --min-jobs 2
+
+      - name: Apply conservative ATS expansion
+        run: |
+          cd _vendor/openjobs
+          node merge-probe-hits.mjs --csv "$PROBE_CSV" --min-jobs 2 --write
+          test -f data/companies_v2.json
+
+      - name: Save expanded ATS route map
+        uses: actions/cache/save@v4
+        with:
+          path: _vendor/openjobs/data/companies_v2.json
+          key: openjobs-ats-routes-${{ github.run_id }}
+
+      - name: Harvest immediately with expanded routes
+        run: |
+          cd _vendor/openjobs
+          node harvest.mjs --no-filter
+
+          CSV="$(ls -1t output/jobs-*.csv 2>/dev/null | head -1)"
+          if [ -z "$CSV" ]; then
+            echo "ERROR: Expanded harvest produced no jobs CSV."
+            exit 1
+          fi
+
+          echo "Expanded harvest: $CSV"
+          echo "Expanded harvest rows: $(($(wc -l < "$CSV") - 1))"
+          echo "HARVEST_CSV=_vendor/openjobs/$CSV" >> "$GITHUB_ENV"
+
+      - name: Import expanded harvest into Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_USER_ID: ${{ secrets.SUPABASE_USER_ID }}
+        run: |
+          test -f "$HARVEST_CSV"
+          python scripts/import_openjobs.py "$HARVEST_CSV"
+
+      - name: Run supplemental direct discovery
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_USER_ID: ${{ secrets.SUPABASE_USER_ID }}
+        run: python scripts/discover_jobs.py
+
+      - name: Expansion completion
+        if: always()
+        run: |
+          echo "ATS expansion finished with status: ${{ job.status }}"
+          echo "Eastern finish: $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
