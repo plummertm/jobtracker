@@ -184,6 +184,18 @@ def main():
             description,
         )
 
+        if work_arrangement not in ("Remote", "Hybrid"):
+            location_rejected += 1
+            print(
+                "EXCLUDED WORK ARRANGEMENT:",
+                company,
+                "|",
+                resolved_role,
+                "|",
+                work_arrangement or "unknown",
+            )
+            continue
+
         rows_to_insert.append({
             "user_id": dj.USER_ID,
             "company": company,
