@@ -378,10 +378,53 @@ def title_matches_config(title, cfg):
         if norm(excluded) in title_n:
             return False
 
+    # "Forward Deployed Engineering" describes a department/function and should
+    # not, by itself, convert a generic software/AI/agent engineer title into
+    # the customer-facing Forward Deployed Engineer role Toni is targeting.
+    if "forward deployed engineering" in title_n:
+        primary = title_n.split("forward deployed engineering", 1)[0].strip()
+        if "forward deployed engineer" not in primary:
+            return False
+
+    # Generic engineering titles that only mention a target discipline in
+    # parentheses or org text should not pass.
+    generic_engineering_markers = (
+        "software engineer", "frontend engineer", "front end engineer",
+        "backend engineer", "back end engineer", "mobile engineer",
+        "qa engineer", "quality engineer", "data engineer",
+        "devops engineer", "site reliability engineer", "sre",
+        "machine learning engineer", "ml engineer",
+        "ai engineer", "agents engineer", "agent engineer",
+    )
+    if any(marker in title_n for marker in generic_engineering_markers):
+        # Allow only when the actual title itself is explicitly one of the
+        # customer-facing target titles.
+        explicit_customer_title = any(
+            phrase in title_n
+            for phrase in (
+                "solutions engineer", "sales engineer", "solutions architect",
+                "customer solutions engineer", "customer engineer",
+                "forward deployed engineer", "presales engineer",
+                "pre sales engineer", "security solutions engineer",
+                "cloud solutions architect", "public sector solutions engineer",
+                "federal solutions engineer",
+            )
+        )
+        if not explicit_customer_title:
+            return False
+
     for wanted in cfg.get("titles", []):
         target = norm(wanted)
+        if not target:
+            continue
 
-        if target and (target in title_n or title_n in target):
+        # Exact phrase containment is fine for most target titles.
+        if target in title_n or title_n in target:
+            # Special-case FDE so "forward deployed engineering" cannot satisfy
+            # "forward deployed engineer".
+            if target == "forward deployed engineer":
+                if not re.search(r"\bforward deployed engineer\b", title_n):
+                    continue
             return True
 
     return False
@@ -401,6 +444,85 @@ def _is_generic_us_location(location_n):
         "united states", "usa", "us", "u s",
         "united states of america",
     }
+
+
+
+NON_DMV_STATE_NAMES = (
+    "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
+    "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
+    "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana",
+    "maine", "massachusetts", "michigan", "minnesota", "mississippi",
+    "missouri", "montana", "nebraska", "nevada", "new hampshire",
+    "new jersey", "new mexico", "new york", "north carolina",
+    "north dakota", "ohio", "oklahoma", "oregon", "pennsylvania",
+    "rhode island", "south carolina", "south dakota", "tennessee",
+    "texas", "utah", "vermont", "washington", "west virginia",
+    "wisconsin", "wyoming",
+)
+
+NON_DMV_STATE_CODES = (
+    "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga", "hi", "id",
+    "il", "in", "ia", "ks", "ky", "la", "me", "ma", "mi", "mn", "ms", "mo",
+    "mt", "ne", "nv", "nh", "nj", "nm", "ny", "nc", "nd", "oh", "ok", "or",
+    "pa", "ri", "sc", "sd", "tn", "tx", "ut", "vt", "wa", "wv", "wi", "wy",
+)
+
+
+def _location_has_non_dmv_state(location=""):
+    raw = clean(location).lower()
+    normalized = norm(location)
+
+    if any(name in normalized for name in NON_DMV_STATE_NAMES):
+        return True
+
+    # State abbreviations must appear as standalone location tokens to avoid
+    # accidental matches inside normal words.
+    for code in NON_DMV_STATE_CODES:
+        if re.search(rf"(?:^|[\s,;/()\-]){re.escape(code)}(?:$|[\s,;/()\-])", raw):
+            return True
+
+    return False
+
+
+def _location_field_scope(location=""):
+    """Classify the ATS location field before looking at JD prose.
+
+    Returns:
+      dmv          - DC/MD/VA geography
+      us_remote    - broad U.S. remote / nationwide remote
+      other        - everything else, including state-restricted remote outside DMV
+    """
+    location_n = norm(location)
+
+    if not location_n:
+        return "other"
+
+    if _dmv_evidence(location, ""):
+        return "dmv"
+
+    has_remote = "remote" in location_n
+
+    # Any explicit non-DMV state restriction is outside scope, even if the
+    # word "remote" is present (e.g. Texas-Remote, Remote-California).
+    if _location_has_non_dmv_state(location):
+        return "other"
+
+    if has_remote:
+        # Broad U.S./national remote labels only.
+        if (
+            _is_generic_us_location(location_n)
+            or any(term in location_n for term in (
+                "united states", "usa", "u s", "us remote",
+                "remote us", "remote usa", "remote united states",
+                "united states remote", "nationwide",
+                "anywhere in the united states", "anywhere in the us",
+                "north america", "americas",
+            ))
+            or location_n == "remote"
+        ):
+            return "us_remote"
+
+    return "other"
 
 
 DMV_TERMS = (
@@ -517,66 +639,31 @@ def infer_work_arrangement(location="", description=""):
 
 
 def location_matches(location, cfg, description=""):
-    """Strict geography/work-arrangement gate.
+    """Hard location gate.
 
-    Keep ONLY:
-      1) U.S.-eligible remote roles, anywhere in the U.S.
-      2) Hybrid roles whose required office geography includes DC, Maryland, or Virginia.
+    Allowed:
+      - broad U.S.-remote / nationwide remote
+      - Remote or Hybrid roles whose ATS location is DC/MD/VA
 
-    Reject:
-      - onsite roles everywhere
-      - hybrid roles outside DC/MD/VA
-      - jobs that only say "United States" with no genuine remote evidence
-      - foreign-only remote roles
+    Rejected:
+      - every non-DMV specific city/state
+      - state-restricted remote outside DMV (Texas-Remote, Remote-California)
+      - onsite roles
+      - generic "United States" rows that are not explicitly remote
+      - JD prose cannot override a disqualifying ATS location field
     """
     if not cfg.get("us_only", True):
         return True
 
-    location_n = norm(location)
-    description_n = norm(description)
-    combined = norm(" ".join([location or "", description or ""]))
-
+    scope = _location_field_scope(location)
     arrangement = infer_work_arrangement(location, description)
 
-    has_us = any(_has_location_phrase(location_n, term) for term in US_ELIGIBLE_TERMS)
-    # The JD itself may state U.S. eligibility even when the ATS location is generic.
-    has_us = has_us or any(
-        phrase in description_n
-        for phrase in (
-            "united states", "within the us", "within the u s",
-            "within the usa", "anywhere in the us",
-            "anywhere in the united states", "us based", "u s based",
-            "usa based",
-        )
-    )
+    if scope == "us_remote":
+        return arrangement == "Remote"
 
-    has_foreign = any(
-        _has_location_phrase(location_n, term) for term in FOREIGN_LOCATION_TERMS
-    )
-    global_remote = any(
-        _has_location_phrase(location_n, term) for term in GLOBAL_REMOTE_TERMS
-    )
+    if scope == "dmv":
+        return arrangement in ("Remote", "Hybrid")
 
-    if arrangement == "Remote":
-        # Foreign-only remote is not eligible.
-        if has_foreign and not has_us and not global_remote:
-            return False
-
-        # Explicit U.S. eligibility or worldwide/global remote is allowed.
-        if has_us or global_remote or _is_generic_us_location(location_n):
-            return True
-
-        # A bare "Remote" label is allowed only if the JD does not restrict it
-        # to a foreign country. This is still a direct-posting remote signal.
-        if location_n == "remote" and not has_foreign:
-            return True
-
-        return False
-
-    if arrangement == "Hybrid":
-        return _dmv_evidence(location, description)
-
-    # Onsite or unknown work arrangement is out.
     return False
 
 
@@ -2623,6 +2710,7 @@ def purge_discovery_noise(min_match_score=80, max_age_days=30):
     stale = 0
     clearance_blocked = 0
     geography_blocked = 0
+    title_blocked = 0
 
     for row in r.json() or []:
         job_id = row.get("id")
@@ -2666,6 +2754,11 @@ def purge_discovery_noise(min_match_score=80, max_age_days=30):
             should_purge = True
             low_match += 1
 
+        if not title_matches_config(fresh_role, load_config()):
+            if not should_purge:
+                title_blocked += 1
+            should_purge = True
+
         if requires_active_ts(fresh_role, fresh_description):
             if not should_purge:
                 clearance_blocked += 1
@@ -2707,8 +2800,9 @@ def purge_discovery_noise(min_match_score=80, max_age_days=30):
         print(
             f"Discovery cleanup removed {len(purge_ids)} rows "
             f"({low_match} below {min_match_score}% match; "
+            f"{title_blocked} title-mismatch; "
             f"{clearance_blocked} clearance-blocked; "
-            f"{geography_blocked} not US-remote or DMV-hybrid; "
+            f"{geography_blocked} not US-remote or DMV remote/hybrid; "
             f"{stale} stale > {max_age_days} days)."
         )
     else:
