@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: job-discovery-sync
@@ -33,15 +34,6 @@ jobs:
           echo "Scheduled expression: ${{ github.event.schedule || 'manual' }}"
           echo "UTC: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Eastern: $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
-          {
-            echo "## Job Discovery heartbeat"
-            echo ""
-            echo "- **Trigger:** ${{ github.event_name }}"
-            echo "- **Schedule:** ${{ github.event.schedule || 'manual' }}"
-            echo "- **UTC:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-            echo "- **Eastern:** $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
-            echo "- **Commit:** \`${GITHUB_SHA}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check out job tracker
         uses: actions/checkout@v4
@@ -74,6 +66,25 @@ jobs:
         run: |
           rm -rf _vendor/openjobs
           git clone --depth 1 https://github.com/outscal/OpenJobs.git _vendor/openjobs
+
+      - name: Restore expanded ATS route map
+        id: restore-routes
+        uses: actions/cache/restore@v4
+        with:
+          path: _vendor/openjobs/data/companies_v2.json
+          key: openjobs-ats-routes-${{ github.run_id }}
+          restore-keys: |
+            openjobs-ats-routes-
+
+      - name: Report ATS route source
+        run: |
+          if [ "${{ steps.restore-routes.outputs.cache-matched-key }}" != "" ]; then
+            echo "Using expanded ATS route map from cache:"
+            echo "${{ steps.restore-routes.outputs.cache-matched-key }}"
+          else
+            echo "No expanded route cache found yet; using upstream OpenJobs routes."
+          fi
+          test -f _vendor/openjobs/data/companies_v2.json
 
       - name: Prepare multi-ATS harvester
         run: |
@@ -132,9 +143,3 @@ jobs:
         run: |
           echo "Job Discovery Sync finished with job status: ${{ job.status }}"
           echo "Eastern finish: $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
-          {
-            echo ""
-            echo "### Completion"
-            echo "- **Job status:** ${{ job.status }}"
-            echo "- **Finished:** $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
-          } >> "$GITHUB_STEP_SUMMARY"
