@@ -485,13 +485,17 @@ def _location_has_non_dmv_state(location=""):
 
 
 def _location_field_scope(location=""):
-    """Classify the ATS location field before looking at JD prose.
+    """Classify the ATS location field itself.
 
     Returns:
-      dmv          - DC/MD/VA geography
-      us_remote    - broad U.S. remote / nationwide remote
-      other        - everything else, including state-restricted remote outside DMV
+      dmv             - DC/MD/VA geography
+      us_remote       - explicit nationwide/U.S.-remote option
+      state_remote    - remote but tied to a non-DMV state/region
+      foreign_remote  - remote but tied to a foreign geography
+      generic_us      - broad United States/USA/US with no remote marker
+      other           - anything else
     """
+    raw = clean(location).lower()
     location_n = norm(location)
 
     if not location_n:
@@ -500,27 +504,64 @@ def _location_field_scope(location=""):
     if _dmv_evidence(location, ""):
         return "dmv"
 
-    has_remote = "remote" in location_n
+    # Split multi-location strings into option-like segments. This lets
+    # "New York, NY; Remote, USA" qualify because one distinct option is
+    # nationwide remote, while "Texas-Remote, United States" remains
+    # state-restricted remote.
+    segments = [
+        seg.strip()
+        for seg in re.split(r"[;|•]+", raw)
+        if seg.strip()
+    ] or [raw]
 
-    # Any explicit non-DMV state restriction is outside scope, even if the
-    # word "remote" is present (e.g. Texas-Remote, Remote-California).
-    if _location_has_non_dmv_state(location):
-        return "other"
+    foreign_markers = (
+        "canada", "united kingdom", " uk", "germany", "france", "spain",
+        "italy", "japan", "singapore", "australia", "india", "ireland",
+        "netherlands", "belgium", "sweden", "south korea", "mexico",
+        "brazil", "chile", "colombia", "peru", "argentina", "poland",
+        "europe", "emea", "apac", "latam",
+    )
 
-    if has_remote:
-        # Broad U.S./national remote labels only.
-        if (
-            _is_generic_us_location(location_n)
-            or any(term in location_n for term in (
-                "united states", "usa", "u s", "us remote",
-                "remote us", "remote usa", "remote united states",
-                "united states remote", "nationwide",
-                "anywhere in the united states", "anywhere in the us",
-                "north america", "americas",
-            ))
-            or location_n == "remote"
-        ):
+    broad_us_remote_patterns = (
+        r"^\s*remote\s*[-,:/ ]+\s*(?:us|usa|united states)\s*$",
+        r"^\s*(?:us|usa|united states)\s*[-,:/ ]+\s*remote\s*$",
+        r"^\s*us[- ]remote\s*$",
+        r"^\s*remote[- ]us\s*$",
+        r"^\s*anywhere,\s*(?:us|usa|united states)\s*$",
+        r"^\s*anywhere in (?:the )?(?:us|usa|united states)\s*$",
+        r"^\s*nationwide(?:\s*remote)?\s*$",
+    )
+
+    # First: if any separate segment is explicitly nationwide U.S. remote,
+    # the posting has an eligible U.S.-remote option.
+    for seg in segments:
+        if any(re.search(p, seg, re.I) for p in broad_us_remote_patterns):
             return "us_remote"
+
+    # Common whole-field broad remote variants with punctuation/order oddities.
+    if raw.strip() in {
+        "remote", "us remote", "usa remote", "united states remote",
+        "remote us", "remote usa", "remote united states",
+        "us-remote", "remote-us",
+    }:
+        return "us_remote"
+
+    # Next: state-restricted remote outside DMV must be rejected, even if the
+    # same segment also says "United States".
+    if "remote" in location_n and _location_has_non_dmv_state(location):
+        return "state_remote"
+
+    # Foreign-only remote.
+    if "remote" in location_n and any(marker.strip() in location_n for marker in foreign_markers):
+        return "foreign_remote"
+
+    # Generic national labels are evaluated against the direct JD later.
+    if _is_generic_us_location(location_n):
+        return "generic_us"
+
+    # "Anywhere, US" and similar without the word remote still denote nationwide.
+    if re.fullmatch(r"\s*anywhere,?\s*(?:us|usa|united states)\s*", raw, re.I):
+        return "us_remote"
 
     return "other"
 
@@ -639,54 +680,40 @@ def infer_work_arrangement(location="", description=""):
 
 
 def location_matches(location, cfg, description=""):
-    """Balanced hard geography gate.
+    """Final geography gate.
 
-    Allowed:
-      - broad U.S.-remote / nationwide remote
-      - generic U.S. location + strong JD evidence that the role is U.S.-remote
-      - DC/MD/VA remote or hybrid
+    Keep only:
+      - explicit nationwide/U.S.-remote roles
+      - generic U.S. locations whose DIRECT JD clearly confirms U.S.-remote
+      - DC/MD/VA roles that are actually remote or hybrid
 
-    Rejected:
-      - every specific non-DMV city/state
-      - state-restricted remote outside DMV (Texas-Remote, Remote-California)
+    Reject:
       - onsite roles
-      - generic U.S. rows with no strong remote evidence
+      - non-DMV state/city restricted roles
+      - state-restricted remote outside DMV
       - foreign-only roles
     """
     if not cfg.get("us_only", True):
         return True
 
-    location_n = norm(location)
-    arrangement = infer_work_arrangement(location, description)
+    scope = _location_field_scope(location)
 
-    if not location_n:
+    # Explicit nationwide U.S.-remote ATS wording is authoritative.
+    if scope == "us_remote":
+        return True
+
+    if scope in ("state_remote", "foreign_remote", "other"):
         return False
 
-    # DMV geography is allowed only when the role is actually Remote or Hybrid.
-    if _dmv_evidence(location, ""):
+    if scope == "dmv":
+        arrangement = infer_work_arrangement(location, description)
         return arrangement in ("Remote", "Hybrid")
 
-    # Any explicit non-DMV state/city restriction is out, regardless of JD wording.
-    # This blocks Seattle, Denver, SF, NY, Texas-Remote, Remote-California, etc.
-    if _location_has_non_dmv_state(location):
-        return False
-
-    # Broad/national remote labels are allowed.
-    scope = _location_field_scope(location)
-    if scope == "us_remote":
-        return arrangement == "Remote"
-
-    # Generic national locations such as "United States" can qualify when the
-    # DIRECT posting itself clearly says the role is remote.
-    if _is_generic_us_location(location_n):
-        return arrangement == "Remote" and _strong_remote_evidence(location, description)
-
-    # Bare "Remote" can qualify when there is no foreign/location restriction.
-    if location_n == "remote":
-        return arrangement == "Remote"
+    if scope == "generic_us":
+        # Generic "United States" needs direct-JD proof of true remote work.
+        return _strong_remote_evidence(location, description) and not _onsite_evidence(location, description)
 
     return False
-
 
 def requires_active_ts(*parts):
     raw_text = " ".join(clean(part) for part in parts if part).lower()
