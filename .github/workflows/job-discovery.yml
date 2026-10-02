@@ -3,10 +3,21 @@ name: Job Discovery Sync
 on:
   workflow_dispatch:
   schedule:
-    - cron: "15 12,16,20,0 * * *"
+    - cron: "23 8 * * *"
+      timezone: "America/New_York"
+    - cron: "23 12 * * *"
+      timezone: "America/New_York"
+    - cron: "23 16 * * *"
+      timezone: "America/New_York"
+    - cron: "23 20 * * *"
+      timezone: "America/New_York"
 
 permissions:
   contents: read
+
+concurrency:
+  group: job-discovery-sync
+  cancel-in-progress: false
 
 jobs:
   discover:
@@ -14,6 +25,24 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      - name: Schedule heartbeat
+        shell: bash
+        run: |
+          echo "Job Discovery Sync started."
+          echo "Event: ${{ github.event_name }}"
+          echo "Scheduled expression: ${{ github.event.schedule || 'manual' }}"
+          echo "UTC: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Eastern: $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
+          {
+            echo "## Job Discovery heartbeat"
+            echo ""
+            echo "- **Trigger:** ${{ github.event_name }}"
+            echo "- **Schedule:** ${{ github.event.schedule || 'manual' }}"
+            echo "- **UTC:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- **Eastern:** $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
+            echo "- **Commit:** \`${GITHUB_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Check out job tracker
         uses: actions/checkout@v4
 
@@ -96,3 +125,16 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_USER_ID: ${{ secrets.SUPABASE_USER_ID }}
         run: python scripts/discover_jobs.py
+
+      - name: Final heartbeat
+        if: always()
+        shell: bash
+        run: |
+          echo "Job Discovery Sync finished with job status: ${{ job.status }}"
+          echo "Eastern finish: $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
+          {
+            echo ""
+            echo "### Completion"
+            echo "- **Job status:** ${{ job.status }}"
+            echo "- **Finished:** $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
+          } >> "$GITHUB_STEP_SUMMARY"
