@@ -131,8 +131,9 @@ def main():
             title_rejected += 1
             continue
 
-        if not dj.location_matches(resolved_location, cfg):
+        if not dj.location_matches(resolved_location, cfg, description):
             location_rejected += 1
+            print("EXCLUDED LOCATION:", company, "|", resolved_role, "|", resolved_location)
             continue
 
         if dj.is_too_old(resolved_posted, max_age_days):
@@ -176,11 +177,12 @@ def main():
             duplicates += 1
             continue
 
-        work_arrangement = None
-        if truthy(row.get("remote")) or "remote" in dj.norm(resolved_location):
-            work_arrangement = "Remote"
-        elif "hybrid" in dj.norm(resolved_location):
-            work_arrangement = "Hybrid"
+        # Do not trust the upstream harvester's remote boolean. Use the
+        # direct posting's location/JD evidence only.
+        work_arrangement = dj.infer_work_arrangement(
+            resolved_location,
+            description,
+        )
 
         rows_to_insert.append({
             "user_id": dj.USER_ID,
