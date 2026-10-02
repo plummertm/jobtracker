@@ -393,76 +393,155 @@ def _has_location_phrase(location_n, phrase):
     return f" {phrase_n} " in f" {location_n} "
 
 
-def location_matches(location, cfg):
+
+def _is_generic_us_location(location_n):
+    compact = re.sub(r"\s+", " ", location_n).strip()
+    return compact in {
+        "united states", "usa", "us", "u s",
+        "united states of america", "north america", "americas",
+    }
+
+
+def _remote_evidence(location="", description=""):
+    location_n = norm(location)
+    description_n = norm(description)
+
+    location_remote = any(
+        phrase in location_n
+        for phrase in (
+            "remote", "remote us", "remote usa", "remote united states",
+            "united states remote", "us remote", "u s remote",
+            "remote north america", "north america remote",
+        )
+    )
+
+    description_remote = any(
+        phrase in description_n
+        for phrase in (
+            "fully remote", "remote role", "remote position",
+            "this role is remote", "this position is remote",
+            "work remotely", "remote within the united states",
+            "remote in the united states", "remote us", "remote usa",
+            "li remote",
+        )
+    )
+    return location_remote or description_remote
+
+
+def _hybrid_evidence(location="", description=""):
+    text = norm(" ".join([location or "", description or ""]))
+    return any(
+        phrase in text
+        for phrase in (
+            "hybrid", "li hybrid", "in office", "in-office",
+        )
+    )
+
+
+def infer_work_arrangement(location="", description=""):
+    if _remote_evidence(location, description):
+        return "Remote"
+    if _hybrid_evidence(location, description):
+        return "Hybrid"
+    return None
+
+
+def location_matches(location, cfg, description=""):
     if not cfg.get("us_only", True):
         return True
 
     location_n = norm(location)
-
     if not location_n:
         return False
 
-    # If the posting explicitly includes the U.S., keep it even when other
-    # countries/regions are also listed. Examples: "Canada, USA" or
-    # "Canada, Europe, USA". Toni can still apply to the U.S. version.
-    if any(_has_location_phrase(location_n, term) for term in US_ELIGIBLE_TERMS):
+    has_us = any(_has_location_phrase(location_n, term) for term in US_ELIGIBLE_TERMS)
+    has_foreign = any(_has_location_phrase(location_n, term) for term in FOREIGN_LOCATION_TERMS)
+    east_coast = any(_has_location_phrase(location_n, term) for term in EAST_COAST_TERMS)
+    global_remote = any(_has_location_phrase(location_n, term) for term in GLOBAL_REMOTE_TERMS)
+    remote = _remote_evidence(location, description)
+
+    # Explicitly global remote can include the U.S. unless the location is clearly foreign-only.
+    if global_remote and not (has_foreign and not has_us):
         return True
 
-    # "Anywhere" / worldwide remote roles are allowed to continue to ATS
-    # resolution because they include U.S. applicants unless the posting later
-    # resolves to a specifically foreign-only location.
-    if any(_has_location_phrase(location_n, term) for term in GLOBAL_REMOTE_TERMS):
+    # Explicit U.S.-eligible remote evidence is acceptable anywhere in the country.
+    if remote and (has_us or east_coast or _is_generic_us_location(location_n)):
         return True
 
-    # Explicit foreign-only location with no U.S. eligibility remains excluded.
-    if any(_has_location_phrase(location_n, term) for term in FOREIGN_LOCATION_TERMS):
+    # East Coast / DMV physical or hybrid roles are acceptable.
+    if east_coast:
+        return True
+
+    # Foreign-only roles remain excluded.
+    if has_foreign and not has_us:
         return False
 
-    # Plain Remote is allowed; final ATS resolution is checked again below.
-    if location_n == "remote" or location_n.startswith("remote "):
+    # Broad national labels are acceptable because they do not pin the job to a
+    # specific non-East-Coast city.
+    if has_us and _is_generic_us_location(location_n):
         return True
 
-    # East Coast / DMV.
-    if any(_has_location_phrase(location_n, term) for term in EAST_COAST_TERMS):
+    # Plain "Remote" is provisionally acceptable and will be validated again
+    # after direct-job enrichment.
+    if location_n == "remote":
         return True
 
+    # Specific non-East-Coast U.S. cities/states are excluded unless the
+    # direct posting itself contains explicit remote evidence.
     return False
 
+
 def requires_active_ts(*parts):
-    text = " ".join(clean(part) for part in parts if part).lower()
-    if not text:
+    raw_text = " ".join(clean(part) for part in parts if part).lower()
+    if not raw_text:
         return False
 
-    # Evaluate sentence-sized fragments so "ability to obtain" does not mask an
-    # unrelated active-clearance requirement elsewhere in the posting.
-    fragments = re.split(r"[\n\r.!?;]+", text)
-    clearance_terms = ("top secret", "ts/sci", "ts sci", "tssci")
+    title_text = clean(parts[0] if parts else "").lower()
+
+    # A title literally labeled "Clearance Required" is treated as a blocker
+    # unless it explicitly says Public Trust.
+    if (
+        ("clearance required" in title_text or "required clearance" in title_text)
+        and "public trust" not in title_text
+    ):
+        return True
+
+    fragments = re.split(r"[\n\r.!?;•]+", raw_text)
     obtain_terms = (
         "ability to obtain", "able to obtain", "eligible to obtain",
         "can obtain", "willing to obtain", "obtain a top secret",
-        "obtain top secret", "sponsorship for", "sponsor for"
+        "obtain top secret", "sponsorship for", "sponsor for",
     )
     active_terms = (
         "active", "current", "currently hold", "must possess", "must hold",
-        "required", "requirement", "requires", "possess a", "hold a"
+        "required", "requirement", "requires", "possess a", "hold a",
+        "must have", "need a",
     )
 
     for fragment in fragments:
-        if not any(term in fragment for term in clearance_terms):
+        fragment_n = norm(fragment)
+        has_ts = any(
+            token in fragment_n
+            for token in ("top secret", "ts sci", "tssci", "sci clearance")
+        )
+        if not has_ts:
             continue
+
+        # Allow "able/eligible to obtain" unless the same sentence also says
+        # the candidate must already hold an active/current clearance.
         if any(term in fragment for term in obtain_terms) and not any(
-            term in fragment for term in ("active", "current", "currently hold", "must possess", "must hold")
+            term in fragment
+            for term in ("active", "current", "currently hold", "must possess", "must hold")
         ):
             continue
+
         if any(term in fragment for term in active_terms):
             return True
-        # A bare "TS/SCI clearance" or "Top Secret clearance" in required-qualification
-        # text is treated as an active-clearance requirement unless the posting says it can be obtained.
+
         if "clearance" in fragment and not any(term in fragment for term in obtain_terms):
             return True
 
     return False
-
 
 def _contains_any(text, phrases):
     return any(phrase in text for phrase in phrases)
@@ -856,6 +935,15 @@ def greenhouse_job_details(company, title, url):
             vals = qs.get("gh_jid") or qs.get("gh_jid[]") or []
             if vals:
                 job_id = str(vals[0]).strip()
+
+        if not job_id:
+            path_match = re.search(
+                r"/careers/(?:jobs?/)?(\d{5,})(?:/|$)",
+                parsed.path or "",
+                re.I,
+            )
+            if path_match:
+                job_id = path_match.group(1)
 
         if not job_id:
             return None
@@ -1318,7 +1406,7 @@ def title_first_ats_search(cfg):
                     continue
                 if requires_active_ts(role, description):
                     continue
-                if not location_matches(location, cfg):
+                if not location_matches(location, cfg, description):
                     continue
 
                 out.append(_direct_candidate(
@@ -2433,7 +2521,7 @@ def purge_discovery_noise(min_match_score=80, max_age_days=30):
         f"{SUPABASE_URL}/rest/v1/discovered_jobs",
         headers=supabase_headers(),
         params={
-            "select": "id,posted_date,first_seen_at,match_score,decision,pass_reason",
+            "select": "id,role,description,location,posted_date,first_seen_at,match_score,decision,pass_reason",
             "user_id": f"eq.{USER_ID}",
             "limit": "10000",
         },
@@ -2444,6 +2532,8 @@ def purge_discovery_noise(min_match_score=80, max_age_days=30):
     purge_ids = []
     low_match = 0
     stale = 0
+    clearance_blocked = 0
+    geography_blocked = 0
 
     for row in r.json() or []:
         job_id = row.get("id")
@@ -2468,6 +2558,20 @@ def purge_discovery_noise(min_match_score=80, max_age_days=30):
         if score_num is not None and score_num < float(min_match_score):
             should_purge = True
             low_match += 1
+
+        if requires_active_ts(row.get("role"), row.get("description")):
+            if not should_purge:
+                clearance_blocked += 1
+            should_purge = True
+
+        if not location_matches(
+            row.get("location") or "",
+            load_config(),
+            row.get("description") or "",
+        ):
+            if not should_purge:
+                geography_blocked += 1
+            should_purge = True
 
         if is_too_old(row.get("posted_date"), int(max_age_days)):
             if not should_purge:
@@ -2495,7 +2599,10 @@ def purge_discovery_noise(min_match_score=80, max_age_days=30):
     if purge_ids:
         print(
             f"Discovery cleanup removed {len(purge_ids)} rows "
-            f"({low_match} below {min_match_score}% match; {stale} stale > {max_age_days} days)."
+            f"({low_match} below {min_match_score}% match; "
+            f"{clearance_blocked} clearance-blocked; "
+            f"{geography_blocked} outside target geography; "
+            f"{stale} stale > {max_age_days} days)."
         )
     else:
         print(
@@ -2615,6 +2722,7 @@ def main():
         if not location_matches(
             job["location"],
             cfg,
+            job.get("description") or "",
         ):
             print(
                 "EXCLUDED LOCATION:",
@@ -2699,10 +2807,19 @@ def main():
             or ""
         )
 
-        # Final location validation after ATS resolution.
+        resolved_title = ats.get("title") or title
+        resolved_description = (
+            ats.get("description")
+            or job.get("description")
+            or ""
+        )
+
+        # Revalidate geography using the enriched direct posting rather than
+        # trusting an upstream "remote" hint.
         if not location_matches(
             resolved_location,
             cfg,
+            resolved_description,
         ):
             location_rejected += 1
 
@@ -2710,7 +2827,7 @@ def main():
                 "REJECTED ATS LOCATION:",
                 company,
                 "|",
-                title,
+                resolved_title,
                 "|",
                 resolved_location,
             )
@@ -2744,17 +2861,6 @@ def main():
         )
 
         is_existing = key in known
-
-        resolved_title = (
-            ats.get("title")
-            or title
-        )
-
-        resolved_description = (
-            ats.get("description")
-            or job.get("description")
-            or ""
-        )
 
         if requires_active_ts(resolved_title, resolved_description):
             print(
@@ -2820,12 +2926,9 @@ def main():
             "job_url": direct_url,
             "posted_date": resolved_posted_date,
             "location": resolved_location or None,
-            "work_arrangement": (
-                "Remote"
-                if "remote" in norm(resolved_location)
-                else "Hybrid"
-                if "hybrid" in norm(resolved_location)
-                else None
+            "work_arrangement": infer_work_arrangement(
+                resolved_location,
+                resolved_description,
             ),
             "match_score": match_score,
             "match_summary": match_summary,
