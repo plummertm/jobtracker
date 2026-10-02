@@ -639,30 +639,51 @@ def infer_work_arrangement(location="", description=""):
 
 
 def location_matches(location, cfg, description=""):
-    """Hard location gate.
+    """Balanced hard geography gate.
 
     Allowed:
       - broad U.S.-remote / nationwide remote
-      - Remote or Hybrid roles whose ATS location is DC/MD/VA
+      - generic U.S. location + strong JD evidence that the role is U.S.-remote
+      - DC/MD/VA remote or hybrid
 
     Rejected:
-      - every non-DMV specific city/state
+      - every specific non-DMV city/state
       - state-restricted remote outside DMV (Texas-Remote, Remote-California)
       - onsite roles
-      - generic "United States" rows that are not explicitly remote
-      - JD prose cannot override a disqualifying ATS location field
+      - generic U.S. rows with no strong remote evidence
+      - foreign-only roles
     """
     if not cfg.get("us_only", True):
         return True
 
-    scope = _location_field_scope(location)
+    location_n = norm(location)
     arrangement = infer_work_arrangement(location, description)
 
+    if not location_n:
+        return False
+
+    # DMV geography is allowed only when the role is actually Remote or Hybrid.
+    if _dmv_evidence(location, ""):
+        return arrangement in ("Remote", "Hybrid")
+
+    # Any explicit non-DMV state/city restriction is out, regardless of JD wording.
+    # This blocks Seattle, Denver, SF, NY, Texas-Remote, Remote-California, etc.
+    if _location_has_non_dmv_state(location):
+        return False
+
+    # Broad/national remote labels are allowed.
+    scope = _location_field_scope(location)
     if scope == "us_remote":
         return arrangement == "Remote"
 
-    if scope == "dmv":
-        return arrangement in ("Remote", "Hybrid")
+    # Generic national locations such as "United States" can qualify when the
+    # DIRECT posting itself clearly says the role is remote.
+    if _is_generic_us_location(location_n):
+        return arrangement == "Remote" and _strong_remote_evidence(location, description)
+
+    # Bare "Remote" can qualify when there is no foreign/location restriction.
+    if location_n == "remote":
+        return arrangement == "Remote"
 
     return False
 
