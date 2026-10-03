@@ -357,8 +357,20 @@ def is_too_old(posted_date, max_days):
     cutoff = datetime.now(timezone.utc).date() - timedelta(days=max_days)
     return parsed < cutoff
 
+HARD_EXCLUDED_COMPANIES = (
+    "databricks",
+)
+
 def company_is_excluded(company, cfg):
     normalized = norm(company)
+
+    # Permanent hard exclusions that should never enter Discovery.
+    # Keep these independent of config so scheduled imports, cleanup, and
+    # supplemental discovery all enforce them consistently.
+    for excluded in HARD_EXCLUDED_COMPANIES:
+        target = norm(excluded)
+        if target and (normalized == target or target in normalized):
+            return True
 
     for excluded in cfg.get("exclude_companies", []):
         target = norm(excluded)
