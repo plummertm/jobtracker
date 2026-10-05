@@ -2931,15 +2931,18 @@ def main():
             job.setdefault("candidate_source", source_name.lower())
         raw.extend(batch)
 
-    # Broad discovery is handled by the multi-ATS OpenJobs sweep in the workflow.
-    # This supplemental collector intentionally avoids search-engine discovery and
-    # focuses on source feeds + direct employer redirects for ATS families such as
-    # iCIMS, Oracle/Taleo, Eightfold, and custom company-careers pages.
+    # Add independent title-first discovery across direct ATS domains.
+    # This prevents Discovery from depending entirely on the same known company/ATS
+    # universe returned by the OpenJobs sweep and feed-seeded company list.
+    title_first_batch = title_first_ats_search(cfg)
+    print(f"Title-first direct ATS candidates fetched: {len(title_first_batch)}")
+    for job in title_first_batch:
+        job.setdefault("candidate_source", "title-first-ats-search")
+    raw.extend(title_first_batch)
 
-    # The old collector waited for an aggregator to surface every posting first.
     # Harvest ATS boards learned from previous successful resolutions and companies
-    # appearing in the current feeds so each scheduled run can catch newly posted
-    # jobs directly from Greenhouse/Lever/Ashby/SmartRecruiters.
+    # appearing in the current feeds so each scheduled run can also catch newly
+    # posted jobs directly from Greenhouse/Lever/Ashby/SmartRecruiters.
     current_companies = {
         clean(job.get("company") or "")
         for job in raw
