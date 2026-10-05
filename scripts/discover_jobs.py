@@ -2145,83 +2145,214 @@ def jobicy(cfg):
         except Exception as e:
             print("Jobicy error:", e)
 
+
+def _himalayas_us_allowed(restrictions):
+    """Return True when a Himalayas job is open to US applicants.
+
+    Himalayas locationRestrictions is normally a list of objects like
+    {"alpha2": "US", "name": "United States", "slug": "united-states"}.
+    An empty list means worldwide, which is also US-eligible.
+    """
+    if not restrictions:
+        return True
+
+    if isinstance(restrictions, (str, dict)):
+        restrictions = [restrictions]
+
+    for item in restrictions:
+        if isinstance(item, dict):
+            values = (
+                item.get("alpha2"),
+                item.get("name"),
+                item.get("slug"),
+            )
+        else:
+            values = (item,)
+
+        normalized = {norm(v) for v in values if v}
+        if normalized & {
+            "us", "usa", "united states",
+            "united states of america", "united states america",
+        }:
+            return True
+
+    return False
+
+
 def himalayas(cfg):
-    """Title-first remote discovery via Himalayas public no-auth API."""
+    """Title-first remote discovery via Himalayas public no-auth API.
+
+    Paginate each title-family search so discovery is not limited to page 1.
+    """
     queries = [
-        "solutions engineer", "solutions architect", "sales engineer",
-        "forward deployed engineer", "technical solutions engineer",
+        "solutions engineer",
+        "solutions architect",
+        "sales engineer",
+        "forward deployed engineer",
+        "technical solutions engineer",
         "customer engineer",
+        "security solutions engineer",
+        "ai solutions engineer",
     ]
     seen = set()
+    total_pages = 0
+    total_raw = 0
+    accepted = 0
+
     for query in queries:
-        try:
-            r = SESSION.get(
-                "https://himalayas.app/jobs/api/search",
-                params={"q": query, "country": "US", "sort": "recent", "page": 1},
-                timeout=25,
-            )
-            r.raise_for_status()
-            for job in (r.json() or {}).get("jobs", []):
-                title = clean(job.get("title") or "")
-                company = clean(job.get("companyName") or "")
-                if not title or not company or not title_matches_config(title, cfg):
-                    continue
-                provider_url = clean(job.get("applicationLink") or job.get("guid") or "")
-                if not provider_url:
-                    continue
-                key = (norm(company), norm(title), provider_url)
-                if key in seen:
-                    continue
-                seen.add(key)
-                restrictions = job.get("locationRestrictions") or []
-                if isinstance(restrictions, str):
-                    restrictions = [restrictions]
-                us_allowed = any(
-                    norm(x) in {"us", "usa", "united states", "united states of america"}
-                    for x in restrictions
+        previous_page_signature = None
+
+        for page in range(1, 6):
+            try:
+                r = SESSION.get(
+                    "https://himalayas.app/jobs/api/search",
+                    params={
+                        "q": query,
+                        "country": "US",
+                        "sort": "recent",
+                        "page": page,
+                    },
+                    timeout=25,
                 )
-                location = "Remote - United States" if us_allowed else "Remote"
-                description = clean(BeautifulSoup(
-                    job.get("description") or job.get("excerpt") or "", "html.parser"
-                ).get_text(" "))
-                yield {
-                    "company": company, "title": title, "url": provider_url,
-                    "location": location, "posted_date": feed_date(job.get("pubDate")),
-                    "description": description, "candidate_source": "himalayas",
-                }
-        except Exception as e:
-            print("Himalayas error:", query, e)
+                r.raise_for_status()
+
+                jobs = (r.json() or {}).get("jobs", []) or []
+                total_pages += 1
+
+                if not jobs:
+                    break
+
+                total_raw += len(jobs)
+
+                signature = tuple(
+                    clean(job.get("guid") or job.get("applicationLink") or "")
+                    for job in jobs[:5]
+                )
+                if signature and signature == previous_page_signature:
+                    break
+                previous_page_signature = signature
+
+                for job in jobs:
+                    title = clean(job.get("title") or "")
+                    company = clean(job.get("companyName") or "")
+                    if not title or not company or not title_matches_config(title, cfg):
+                        continue
+
+                    restrictions = job.get("locationRestrictions") or []
+                    if not _himalayas_us_allowed(restrictions):
+                        continue
+
+                    provider_url = clean(
+                        job.get("applicationLink") or job.get("guid") or ""
+                    )
+                    if not provider_url:
+                        continue
+
+                    key = (
+                        norm(company),
+                        norm(title),
+                        canonical_url(provider_url),
+                    )
+                    if key in seen:
+                        continue
+                    seen.add(key)
+
+                    description = clean(
+                        BeautifulSoup(
+                            job.get("description") or job.get("excerpt") or "",
+                            "html.parser",
+                        ).get_text(" ")
+                    )
+
+                    accepted += 1
+                    yield {
+                        "company": company,
+                        "title": title,
+                        "url": provider_url,
+                        "location": "Remote - United States",
+                        "posted_date": feed_date(job.get("pubDate")),
+                        "description": description,
+                        "candidate_source": "himalayas",
+                    }
+
+            except Exception as e:
+                print("Himalayas error:", query, "page", page, e)
+                break
+
+    print(
+        "Himalayas discovery details:",
+        f"pages={total_pages}",
+        f"raw_jobs={total_raw}",
+        f"accepted_target_jobs={accepted}",
+    )
 
 
 def weworkremotely(cfg):
-    """WWR RSS used only as a provider seed for direct ATS resolution."""
-    try:
-        r = SESSION.get("https://weworkremotely.com/remote-jobs.rss", timeout=25)
-        r.raise_for_status()
-        root = ET.fromstring(r.text)
-        seen = set()
-        for item in root.findall(".//item"):
-            raw_title = clean(item.findtext("title") or "")
-            provider_url = clean(item.findtext("link") or "")
-            if ": " not in raw_title or not provider_url:
-                continue
-            company, title = [clean(x) for x in raw_title.split(": ", 1)]
-            if not company or not title or not title_matches_config(title, cfg):
-                continue
-            key = (norm(company), norm(title), provider_url)
-            if key in seen:
-                continue
-            seen.add(key)
-            description = clean(BeautifulSoup(
-                item.findtext("description") or "", "html.parser"
-            ).get_text(" "))
-            yield {
-                "company": company, "title": title, "url": provider_url,
-                "location": "Remote", "posted_date": feed_date(item.findtext("pubDate") or ""),
-                "description": description, "candidate_source": "weworkremotely",
-            }
-    except Exception as e:
-        print("We Work Remotely error:", e)
+    """WWR RSS feeds used only as provider seeds for direct ATS resolution."""
+    feeds = [
+        "https://weworkremotely.com/remote-jobs.rss",
+        "https://weworkremotely.com/categories/remote-sales-and-marketing-jobs.rss",
+        "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss",
+        "https://weworkremotely.com/categories/all-other-remote-jobs.rss",
+    ]
+
+    seen = set()
+    raw_items = 0
+    accepted = 0
+
+    for feed_url in feeds:
+        try:
+            r = SESSION.get(feed_url, timeout=25)
+            r.raise_for_status()
+            root = ET.fromstring(r.text)
+
+            for item in root.findall(".//item"):
+                raw_items += 1
+                raw_title = clean(item.findtext("title") or "")
+                provider_url = clean(item.findtext("link") or "")
+
+                if ": " not in raw_title or not provider_url:
+                    continue
+
+                company, title = [clean(x) for x in raw_title.split(": ", 1)]
+                if not company or not title or not title_matches_config(title, cfg):
+                    continue
+
+                key = (
+                    norm(company),
+                    norm(title),
+                    canonical_url(provider_url),
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                description = clean(
+                    BeautifulSoup(
+                        item.findtext("description") or "",
+                        "html.parser",
+                    ).get_text(" ")
+                )
+
+                accepted += 1
+                yield {
+                    "company": company,
+                    "title": title,
+                    "url": provider_url,
+                    "location": "Remote",
+                    "posted_date": feed_date(item.findtext("pubDate") or ""),
+                    "description": description,
+                    "candidate_source": "weworkremotely",
+                }
+
+        except Exception as e:
+            print("We Work Remotely error:", feed_url, e)
+
+    print(
+        "We Work Remotely discovery details:",
+        f"raw_items={raw_items}",
+        f"accepted_target_jobs={accepted}",
+    )
 
 
 def remotive():
