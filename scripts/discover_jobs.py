@@ -8,6 +8,7 @@ import hashlib
 import urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
+from email.utils import parsedate_to_datetime
 from difflib import SequenceMatcher
 
 import requests
@@ -82,6 +83,8 @@ BLOCKED_HOST_PARTS = [
     "remoteok.",
     "remotive.",
     "jobicy.",
+    "himalayas.",
+    "weworkremotely.",
 ]
 
 CORPORATE_SUFFIXES = {
@@ -336,6 +339,25 @@ def iso_date(value):
 
     match = re.search(r"\d{4}-\d{2}-\d{2}", str(value))
     return match.group(0) if match else None
+
+
+def feed_date(value):
+    direct = iso_date(value)
+    if direct:
+        return direct
+    if value is None or value == "":
+        return None
+    try:
+        numeric = float(value)
+        if numeric > 10_000_000_000:
+            numeric /= 1000.0
+        return datetime.fromtimestamp(numeric, tz=timezone.utc).date().isoformat()
+    except (TypeError, ValueError, OverflowError, OSError):
+        pass
+    try:
+        return parsedate_to_datetime(str(value)).date().isoformat()
+    except Exception:
+        return None
 
 def parse_iso_date(value):
     value = iso_date(value)
@@ -2123,6 +2145,85 @@ def jobicy(cfg):
         except Exception as e:
             print("Jobicy error:", e)
 
+def himalayas(cfg):
+    """Title-first remote discovery via Himalayas public no-auth API."""
+    queries = [
+        "solutions engineer", "solutions architect", "sales engineer",
+        "forward deployed engineer", "technical solutions engineer",
+        "customer engineer",
+    ]
+    seen = set()
+    for query in queries:
+        try:
+            r = SESSION.get(
+                "https://himalayas.app/jobs/api/search",
+                params={"q": query, "country": "US", "sort": "recent", "page": 1},
+                timeout=25,
+            )
+            r.raise_for_status()
+            for job in (r.json() or {}).get("jobs", []):
+                title = clean(job.get("title") or "")
+                company = clean(job.get("companyName") or "")
+                if not title or not company or not title_matches_config(title, cfg):
+                    continue
+                provider_url = clean(job.get("applicationLink") or job.get("guid") or "")
+                if not provider_url:
+                    continue
+                key = (norm(company), norm(title), provider_url)
+                if key in seen:
+                    continue
+                seen.add(key)
+                restrictions = job.get("locationRestrictions") or []
+                if isinstance(restrictions, str):
+                    restrictions = [restrictions]
+                us_allowed = any(
+                    norm(x) in {"us", "usa", "united states", "united states of america"}
+                    for x in restrictions
+                )
+                location = "Remote - United States" if us_allowed else "Remote"
+                description = clean(BeautifulSoup(
+                    job.get("description") or job.get("excerpt") or "", "html.parser"
+                ).get_text(" "))
+                yield {
+                    "company": company, "title": title, "url": provider_url,
+                    "location": location, "posted_date": feed_date(job.get("pubDate")),
+                    "description": description, "candidate_source": "himalayas",
+                }
+        except Exception as e:
+            print("Himalayas error:", query, e)
+
+
+def weworkremotely(cfg):
+    """WWR RSS used only as a provider seed for direct ATS resolution."""
+    try:
+        r = SESSION.get("https://weworkremotely.com/remote-jobs.rss", timeout=25)
+        r.raise_for_status()
+        root = ET.fromstring(r.text)
+        seen = set()
+        for item in root.findall(".//item"):
+            raw_title = clean(item.findtext("title") or "")
+            provider_url = clean(item.findtext("link") or "")
+            if ": " not in raw_title or not provider_url:
+                continue
+            company, title = [clean(x) for x in raw_title.split(": ", 1)]
+            if not company or not title or not title_matches_config(title, cfg):
+                continue
+            key = (norm(company), norm(title), provider_url)
+            if key in seen:
+                continue
+            seen.add(key)
+            description = clean(BeautifulSoup(
+                item.findtext("description") or "", "html.parser"
+            ).get_text(" "))
+            yield {
+                "company": company, "title": title, "url": provider_url,
+                "location": "Remote", "posted_date": feed_date(item.findtext("pubDate") or ""),
+                "description": description, "candidate_source": "weworkremotely",
+            }
+    except Exception as e:
+        print("We Work Remotely error:", e)
+
+
 def remotive():
     try:
         r = SESSION.get(
@@ -3034,6 +3135,8 @@ def main():
     raw = []
 
     source_batches = [
+        ("Himalayas", list(himalayas(cfg))),
+        ("WeWorkRemotely", list(weworkremotely(cfg))),
         ("Jobicy", list(jobicy(cfg))),
         ("Remotive", list(remotive())),
         ("RemoteOK", list(remoteok())),
@@ -3047,14 +3150,10 @@ def main():
             job.setdefault("candidate_source", source_name.lower())
         raw.extend(batch)
 
-    # Add independent title-first discovery across direct ATS domains.
-    # This prevents Discovery from depending entirely on the same known company/ATS
-    # universe returned by the OpenJobs sweep and feed-seeded company list.
-    title_first_batch = title_first_ats_search(cfg)
-    print(f"Title-first direct ATS candidates fetched: {len(title_first_batch)}")
-    for job in title_first_batch:
-        job.setdefault("candidate_source", "title-first-ats-search")
-    raw.extend(title_first_batch)
+    # Search-engine HTML/RSS scraping is intentionally NOT in the critical path.
+    # GitHub-hosted runners are unreliable for Bing/DDG. Himalayas gives us
+    # deterministic title-first discovery without an API key; provider pages are
+    # still resolved to direct employer/ATS URLs before anything can be inserted.
 
     # Harvest ATS boards learned from previous successful resolutions and companies
     # appearing in the current feeds so each scheduled run can also catch newly
@@ -3131,6 +3230,8 @@ def main():
         key = (
             norm(job["company"]),
             norm(job["title"]),
+            norm(job.get("location") or ""),
+            canonical_url(job.get("url") or ""),
         )
 
         if key not in candidates:
