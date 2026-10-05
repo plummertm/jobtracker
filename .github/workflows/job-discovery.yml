@@ -3,14 +3,7 @@ name: Job Discovery Sync
 on:
   workflow_dispatch:
   schedule:
-    - cron: "23 8 * * *"
-      timezone: "America/New_York"
-    - cron: "23 12 * * *"
-      timezone: "America/New_York"
-    - cron: "23 16 * * *"
-      timezone: "America/New_York"
-    - cron: "23 20 * * *"
-      timezone: "America/New_York"
+    - cron: "23 0,12,16,20 * * *"
 
 permissions:
   contents: read
