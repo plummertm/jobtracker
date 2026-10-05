@@ -1515,6 +1515,86 @@ def _bing_rss_links(query):
         return []
 
 
+def _bing_html_links(query):
+    """Fallback to Bing HTML results when RSS is sparse or unavailable."""
+    try:
+        r = SESSION.get(
+            "https://www.bing.com/search",
+            params={"q": query, "count": 50},
+            timeout=REQUEST_TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+        soup = BeautifulSoup(r.text, "html.parser")
+        out = []
+        for a in soup.select("li.b_algo h2 a[href], h2 a[href]"):
+            link = clean(a.get("href") or "")
+            title = clean(a.get_text(" "))
+            if link.startswith("http"):
+                out.append((link, title))
+        return out
+    except Exception:
+        return []
+
+
+def _unwrap_duckduckgo_url(url):
+    try:
+        parsed = urllib.parse.urlsplit(url or "")
+        qs = urllib.parse.parse_qs(parsed.query)
+        if "uddg" in qs and qs["uddg"]:
+            return urllib.parse.unquote(qs["uddg"][0])
+    except Exception:
+        pass
+    return url
+
+
+def _duckduckgo_html_links(query):
+    """Independent no-key search fallback."""
+    endpoints = (
+        "https://html.duckduckgo.com/html/",
+        "https://duckduckgo.com/html/",
+    )
+    for endpoint in endpoints:
+        try:
+            r = SESSION.get(endpoint, params={"q": query}, timeout=REQUEST_TIMEOUT)
+            if r.status_code != 200:
+                continue
+            soup = BeautifulSoup(r.text, "html.parser")
+            out = []
+            for a in soup.select("a.result__a[href], .result h2 a[href]"):
+                link = _unwrap_duckduckgo_url(clean(a.get("href") or ""))
+                title = clean(a.get_text(" "))
+                if link.startswith("http"):
+                    out.append((link, title))
+            if out:
+                return out
+        except Exception:
+            continue
+    return []
+
+
+def _search_web_links(query):
+    """Merge multiple independent search paths and dedupe canonical URLs."""
+    providers = (
+        ("bing-rss", _bing_rss_links),
+        ("bing-html", _bing_html_links),
+        ("duckduckgo-html", _duckduckgo_html_links),
+    )
+    merged = []
+    seen = set()
+    provider_counts = {}
+    for provider_name, fn in providers:
+        links = fn(query)
+        provider_counts[provider_name] = len(links)
+        for link, title in links:
+            canonical = canonical_url(link)
+            if not canonical or canonical in seen:
+                continue
+            seen.add(canonical)
+            merged.append((canonical, title, provider_name))
+    return merged, provider_counts
+
+
 def expanded_direct_search_resolve(company, title):
     # Best-effort fallback for ATS families without a simple public board API
     # (Workday, iCIMS, Oracle/Taleo, Eightfold) and branded company-careers pages.
@@ -1542,7 +1622,8 @@ def expanded_direct_search_resolve(company, title):
     seen = set()
 
     for query in dict.fromkeys(queries):
-        for link, result_title in _bing_rss_links(query):
+        search_results, _ = _search_web_links(query)
+        for link, result_title, _provider in search_results:
             candidate = canonical_url(link)
             if candidate in seen or not is_direct_ats(candidate):
                 continue
@@ -1594,8 +1675,8 @@ def _company_hint_from_search(result_title, role_title, url):
 def title_first_ats_search(cfg):
     """Discover direct ATS postings without needing a company/feed seed first.
 
-    This is the missing coverage layer: query the web index for target titles on
-    direct ATS domains, then validate the live posting itself before insertion.
+    Search engines only discover candidate direct ATS URLs. Every result is then
+    fetched from the employer/ATS and revalidated against the actual JD.
     """
     title_groups = [
         '("Solutions Engineer" OR "Sales Engineer" OR "Pre-Sales Engineer" OR "Presales Engineer")',
@@ -1605,44 +1686,67 @@ def title_first_ats_search(cfg):
     ]
     domains = [
         "jobs.lever.co",
+        "jobs.eu.lever.co",
         "jobs.ashbyhq.com",
         "job-boards.greenhouse.io",
+        "boards.greenhouse.io",
         "jobs.smartrecruiters.com",
         "myworkdayjobs.com",
     ]
 
     out = []
     seen_urls = set()
+    provider_totals = {"bing-rss": 0, "bing-html": 0, "duckduckgo-html": 0}
+    raw_search_results = 0
+    direct_urls = 0
+    details_failed = 0
+    title_rejected = 0
+    company_rejected = 0
+    clearance_rejected = 0
+    location_rejected = 0
+
     for domain in domains:
         for titles in title_groups:
-            query = f'site:{domain} {titles} ("United States" OR USA OR Remote OR "Washington D.C." OR "Washington, DC")'
-            links = _bing_rss_links(query)
-            for link, result_title in links:
+            # Do not require geography in the search-engine query. The live job
+            # itself is the authority for geography and is filtered below.
+            query = f"site:{domain} {titles}"
+            search_results, provider_counts = _search_web_links(query)
+            for provider, count in provider_counts.items():
+                provider_totals[provider] = provider_totals.get(provider, 0) + count
+            raw_search_results += len(search_results)
+
+            for link, result_title, _provider in search_results:
                 candidate_url = canonical_url(link)
-                if not candidate_url or candidate_url in seen_urls or not is_direct_ats(candidate_url):
+                if not candidate_url or candidate_url in seen_urls:
+                    continue
+                if not is_direct_ats(candidate_url):
                     continue
                 seen_urls.add(candidate_url)
+                direct_urls += 1
 
                 details = fetch_direct_job_details(candidate_url, "")
                 if not details:
+                    details_failed += 1
                     continue
                 role = clean(details.get("title") or "")
                 if not role or not title_matches_config(role, cfg):
+                    title_rejected += 1
                     continue
 
                 company = clean(details.get("company") or "")
                 if not company:
                     company = _company_hint_from_search(result_title, role, candidate_url)
-                if not company:
+                if not company or company_is_excluded(company, cfg):
+                    company_rejected += 1
                     continue
 
                 description = clean(details.get("description") or "")
                 location = clean(details.get("location") or "")
-                if company_is_excluded(company, cfg):
-                    continue
                 if requires_active_ts(role, description):
+                    clearance_rejected += 1
                     continue
                 if not location_matches(location, cfg, description):
+                    location_rejected += 1
                     continue
 
                 out.append(_direct_candidate(
@@ -1655,7 +1759,19 @@ def title_first_ats_search(cfg):
                     "title-first-ats-search",
                 ))
 
-    print("Title-first ATS search candidates:", len(out))
+    print("========== TITLE-FIRST ATS SEARCH ==========")
+    print("Bing RSS results:", provider_totals.get("bing-rss", 0))
+    print("Bing HTML results:", provider_totals.get("bing-html", 0))
+    print("DuckDuckGo HTML results:", provider_totals.get("duckduckgo-html", 0))
+    print("Merged search results:", raw_search_results)
+    print("Unique direct ATS URLs:", direct_urls)
+    print("Direct job detail fetch failures:", details_failed)
+    print("Title rejected:", title_rejected)
+    print("Company rejected:", company_rejected)
+    print("Active-TS rejected:", clearance_rejected)
+    print("Location rejected:", location_rejected)
+    print("Accepted title-first candidates:", len(out))
+    print("===========================================")
     return out
 
 
