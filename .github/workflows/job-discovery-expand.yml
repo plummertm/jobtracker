@@ -3,8 +3,7 @@ name: Job Discovery ATS Expansion
 on:
   workflow_dispatch:
   schedule:
-    - cron: "37 3 * * 0"
-      timezone: "America/New_York"
+    - cron: "37 7 * * 0"
 
 permissions:
   contents: read
@@ -21,8 +20,11 @@ jobs:
 
     steps:
       - name: Expansion heartbeat
+        shell: bash
         run: |
           echo "ATS expansion started."
+          echo "Event: ${{ github.event_name }}"
+          echo "Scheduled expression: ${{ github.event.schedule || 'manual' }}"
           echo "UTC: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Eastern: $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
 
@@ -59,13 +61,11 @@ jobs:
         run: |
           cd _vendor/openjobs
           node probe-ats.mjs
-
           PROBE_CSV="$(ls -1t output/ats-probe-*.csv 2>/dev/null | head -1)"
           if [ -z "$PROBE_CSV" ]; then
             echo "ERROR: ATS probe produced no CSV."
             exit 1
           fi
-
           echo "Probe output: $PROBE_CSV"
           echo "Probe rows: $(($(wc -l < "$PROBE_CSV") - 1))"
           echo "PROBE_CSV=$PROBE_CSV" >> "$GITHUB_ENV"
@@ -98,13 +98,11 @@ jobs:
         run: |
           cd _vendor/openjobs
           node harvest.mjs --no-filter
-
           CSV="$(ls -1t output/jobs-*.csv 2>/dev/null | head -1)"
           if [ -z "$CSV" ]; then
             echo "ERROR: Expanded harvest produced no jobs CSV."
             exit 1
           fi
-
           echo "Expanded harvest: $CSV"
           echo "Expanded harvest rows: $(($(wc -l < "$CSV") - 1))"
           echo "HARVEST_CSV=_vendor/openjobs/$CSV" >> "$GITHUB_ENV"
@@ -127,6 +125,7 @@ jobs:
 
       - name: Expansion completion
         if: always()
+        shell: bash
         run: |
           echo "ATS expansion finished with status: ${{ job.status }}"
           echo "Eastern finish: $(TZ=America/New_York date '+%Y-%m-%d %I:%M:%S %p %Z')"
